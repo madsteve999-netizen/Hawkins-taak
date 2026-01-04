@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stranger Tasks - Stas Ultimate</title>
+    <title>Очень Странные Дела - Версия Стаса (Вечная)</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         :root {
@@ -22,31 +22,79 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* --- ФОН (ТВОЯ ССЫЛКА) --- */
+        /* --- ФОН --- */
         .bg-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             z-index: 0;
-            
-            /* Ссылка на картинку (пропущена через прокси wsrv.nl для обхода защиты от хотлинкинга) */
             background-image: url('https://wsrv.nl/?url=https://images.cgames.de/images/gamestar/290/stranger-things_6000665.jpg&w=1200&output=jpg&q=80');
             background-size: cover;
             background-position: center;
-            
-            /* Легкие фильтры, чтобы белый текст читался идеально */
             filter: contrast(1.1) brightness(0.7);
+            transition: filter 0.2s;
         }
 
-        /* Затемнение снизу вверх, чтобы интерфейс не сливался */
         .overlay {
             position: fixed; inset: 0; pointer-events: none; z-index: 1;
             background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.9) 100%);
         }
 
-        /* Помехи (Scanlines) */
         .scanlines {
             position: fixed; inset: 0; pointer-events: none; z-index: 2;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
             background-size: 100% 4px; opacity: 0.2;
+        }
+
+        /* --- СИСТЕМА СПОР --- */
+        #spores-container {
+            position: fixed; inset: 0; pointer-events: none; z-index: 3;
+            opacity: 0;
+            transition: opacity 2s ease;
+            overflow: hidden;
+        }
+
+        body.music-active #spores-container {
+            opacity: 1;
+        }
+
+        .spore {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+        }
+
+        @keyframes fall {
+            0% { top: -10%; opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { top: 110%; opacity: 0; }
+        }
+
+        @keyframes sway {
+            0% { transform: translateX(0px); }
+            100% { transform: translateX(25px); }
+        }
+
+        /* --- МОЛНИЯ --- */
+        #lightning {
+            position: fixed; inset: 0; z-index: 4; pointer-events: none;
+            background: rgba(255, 255, 255, 0.15);
+            mix-blend-mode: hard-light;
+            opacity: 0;
+        }
+
+        .flash-now {
+            animation: thunder-strike 0.6s ease-out;
+        }
+
+        @keyframes thunder-strike {
+            0% { opacity: 0; }
+            5% { opacity: 0.8; }
+            10% { opacity: 0.3; }
+            15% { opacity: 0.6; }
+            30% { opacity: 0.1; }  
+            100% { opacity: 0; }
         }
 
         /* --- ИНТЕРФЕЙС --- */
@@ -55,7 +103,6 @@
             display: flex; flex-direction: column;
         }
 
-        /* Вход */
         #entry-screen {
             position: absolute; inset: 0; display: flex; flex-direction: column;
             align-items: center; justify-content: center; background: rgba(0,0,0,0.85); z-index: 20;
@@ -64,12 +111,14 @@
         @keyframes flicker {
             0%, 100% { opacity: 1; text-shadow: 0 0 20px var(--red); }
             50% { opacity: 0.8; text-shadow: 0 0 5px var(--dark-red); }
+            70% { opacity: 0.9; text-shadow: 0 0 15px var(--red); }
         }
 
         .neon-title {
             font-size: 3.5rem; color: var(--red); font-weight: 900;
             text-transform: uppercase; letter-spacing: -2px; margin-bottom: 40px;
             text-shadow: 0 0 10px var(--red); animation: flicker 3s infinite; text-align: center;
+            line-height: 1.1;
         }
 
         .btn-enter {
@@ -78,7 +127,6 @@
             text-transform: uppercase; box-shadow: 0 0 20px var(--dark-red);
         }
 
-        /* Основной блок */
         #workspace {
             display: none; padding: 20px; max-width: 600px; margin: 0 auto;
             width: 100%; padding-bottom: 100px;
@@ -88,9 +136,12 @@
             text-align: center; margin-bottom: 20px; padding-bottom: 10px;
             border-bottom: 2px solid var(--dark-red);
         }
-        .header h2 { color: var(--red); margin: 0; font-size: 2rem; text-transform: uppercase; text-shadow: 0 0 10px #000; }
+        .header h2 { 
+            color: var(--red); margin: 0; font-size: 2rem; 
+            text-transform: uppercase; text-shadow: 0 0 10px #000;
+            animation: flicker 4s infinite alternate; 
+        }
 
-        /* Радио */
         .radio-box {
             background: rgba(20, 0, 0, 0.8); border: 1px solid var(--dark-red);
             padding: 15px; margin-bottom: 20px; backdrop-filter: blur(5px);
@@ -108,7 +159,6 @@
         }
         .play-btn.playing { background: var(--red); color: #000; }
 
-        /* Ввод */
         .input-row { display: flex; margin-bottom: 30px; position: relative; }
         #task-input {
             width: 100%; background: rgba(0,0,0,0.7); border: none; border-bottom: 2px solid var(--dark-red);
@@ -120,7 +170,6 @@
             cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
 
-        /* Список */
         ul { list-style: none; padding: 0; margin: 0; }
         
         .task-item {
@@ -154,52 +203,47 @@
         .sortable-ghost { opacity: 0; }
         .sortable-drag { background: #000; border: 2px solid var(--red); opacity: 1 !important; transform: scale(1.05); z-index: 100; }
 
-        .list-title { color: #888; font-size: 0.8rem; text-align: center; margin-bottom: 10px; letter-spacing: 2px; text-shadow: 1px 1px 2px #000; }
+        .list-title { color: #888; font-size: 0.8rem; text-align: center; margin-bottom: 10px; letter-spacing: 2px; text-shadow: 1px 1px 2px #000; text-transform: uppercase; }
         #completed-list { margin-top: 40px; padding-top: 20px; border-top: 1px dashed #333; }
 
     </style>
 </head>
 <body>
 
-    <div class="bg-layer"></div>
+    <div class="bg-layer" id="bg-layer"></div>
     <div class="overlay"></div>
     <div class="scanlines"></div>
+    <div id="lightning"></div>
+    <div id="spores-container"></div>
 
     <div id="app-ui">
-        <!-- ENTRY -->
         <div id="entry-screen">
-            <div class="neon-title">HAWKINS<br>LAB</div>
-            <button class="btn-enter" onclick="startApp()">ENTER</button>
+            <div class="neon-title">ЛАБОРАТОРИЯ<br>ХОУКИНСА</div>
+            <button class="btn-enter" onclick="startApp()">ВОЙТИ</button>
         </div>
 
-        <!-- WORKSPACE -->
         <div id="workspace">
-            <div class="header"><h2>MISSION LOG</h2></div>
+            <div class="header"><h2>СПИСОК ЗАДАЧ</h2></div>
 
-            <!-- Radio -->
             <div class="radio-box">
                 <div class="channel-row">
                     <div class="ch-btn active" onclick="setCh(0)">1</div>
                     <div class="ch-btn" onclick="setCh(1)">2</div>
                     <div class="ch-btn" onclick="setCh(2)">3</div>
-                    <div class="ch-btn" onclick="setCh(3)">4</div>
-                    <div class="ch-btn" onclick="setCh(4)">5</div>
                 </div>
-                <button class="play-btn" id="play-btn" onclick="toggleAudio()">START TRANSMISSION</button>
+                <button class="play-btn" id="play-btn" onclick="toggleAudio()">НАЧАТЬ ЭФИР</button>
             </div>
 
-            <!-- Input -->
             <div class="input-row">
-                <input type="text" id="task-input" placeholder="NEW OBJECTIVE..." onkeydown="if(event.key==='Enter') addTask()">
+                <input type="text" id="task-input" placeholder="НОВАЯ ЦЕЛЬ..." onkeydown="if(event.key==='Enter') addTask()">
                 <button class="add-btn" onclick="addTask()">+</button>
             </div>
 
-            <!-- Lists -->
-            <div class="list-title">ACTIVE</div>
+            <div class="list-title">АКТИВНЫЕ</div>
             <ul id="active-list"></ul>
 
             <div id="completed-section">
-                <div class="list-title" style="margin-top: 30px;">ARCHIVED</div>
+                <div class="list-title" style="margin-top: 30px;">АРХИВ</div>
                 <ul id="completed-list"></ul>
             </div>
         </div>
@@ -208,20 +252,110 @@
     <audio id="audio" loop></audio>
 
     <script>
-        // DATA
-        let tasks = [];
-        try { tasks = JSON.parse(localStorage.getItem('stas_tasks_final')) || []; } catch(e){}
+        // --- КОНСТАНТА ХРАНИЛИЩА (ВЕЧНАЯ) ---
+        const DB_KEY = 'STRANGER_THINGS_GOLD_DB';
+        
+        // Ключи старых версий для восстановления
+        const LEGACY_KEYS = [
+            'stas_tasks_final', 
+            'stas_tasks_final_elite',
+            'stas_tasks_elite',
+            'stas_tasks_proxied',
+            'stas_tasks_offline',
+            'stas_db_v3',
+            'stas_tasks_final_art'
+        ];
 
+        // --- ВОССТАНОВЛЕНИЕ ДАННЫХ ---
+        function loadTasks() {
+            let data = [];
+            try {
+                // 1. Пробуем загрузить из основного хранилища
+                const saved = localStorage.getItem(DB_KEY);
+                if (saved) {
+                    data = JSON.parse(saved);
+                } else {
+                    // 2. Если пусто, ищем в старых версиях (миграция)
+                    console.log("Основная база пуста, ищем в архивах...");
+                    for (let key of LEGACY_KEYS) {
+                        const legacyData = localStorage.getItem(key);
+                        if (legacyData) {
+                            try {
+                                const parsed = JSON.parse(legacyData);
+                                if (Array.isArray(parsed) && parsed.length > 0) {
+                                    console.log(`Найдено ${parsed.length} задач в ${key}`);
+                                    data = parsed; // Берем последние найденные
+                                    break; // Нашли - выходим
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                    // Сохраняем найденное в новую базу сразу
+                    if (data.length > 0) {
+                        localStorage.setItem(DB_KEY, JSON.stringify(data));
+                    }
+                }
+            } catch(e) {
+                console.error("Ошибка загрузки:", e);
+            }
+            return data || [];
+        }
+
+        let tasks = loadTasks();
+
+        // --- СПОРЫ ---
+        function initSpores() {
+            const container = document.getElementById('spores-container');
+            const sporeCount = 50; 
+            for (let i = 0; i < sporeCount; i++) {
+                const spore = document.createElement('div');
+                spore.classList.add('spore');
+                const startLeft = Math.random() * 100;
+                const size = Math.random() * 4 + 2; 
+                const duration = Math.random() * 5 + 5; 
+                const delay = Math.random() * 5; 
+                const swayDuration = Math.random() * 2 + 2; 
+                
+                spore.style.left = startLeft + '%';
+                spore.style.width = size + 'px';
+                spore.style.height = size + 'px';
+                spore.style.animation = `fall ${duration}s linear infinite ${delay}s, sway ${swayDuration}s ease-in-out infinite alternate`;
+                container.appendChild(spore);
+            }
+        }
+
+        // --- ГРОЗА ---
+        let thunderTimer;
+        function startThunderLoop() {
+            const delay = Math.random() * 5000 + 5000; 
+            thunderTimer = setTimeout(() => {
+                triggerLightning();
+                startThunderLoop(); 
+            }, delay);
+        }
+        function stopThunderLoop() { clearTimeout(thunderTimer); }
+        function triggerLightning() {
+            const light = document.getElementById('lightning');
+            light.classList.remove('flash-now');
+            void light.offsetWidth; 
+            light.classList.add('flash-now');
+        }
+
+        // --- АУДИО ---
         const songs = [
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"
+            "https://www.myinstants.com/media/sounds/st-int.mp3",
+            "https://www.myinstants.com/media/sounds/stranger-things-maxs-music.mp3",
+            "https://www.myinstants.com/media/sounds/stranger-things-vecna-grandfather-clock.mp3"
         ];
         let curCh = 0;
         
-        // SOUNDS
+        // Названия каналов для дисплея (чтобы совпадало с массивом songs)
+        const songNames = [
+            "THEME", 
+            "MAX'S SONG", 
+            "THE CLOCK"
+        ];
+        
         const sfxClick = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3");
         const sfxDel = new Audio("https://assets.mixkit.co/active_storage/sfx/2857/2857-preview.mp3");
 
@@ -231,15 +365,26 @@
             s.play().catch(()=>{});
         }
 
-        // APP LOGIC
+        function updateUI() {
+            // Берем имя из нового массива имен
+            //document.getElementById('track-name').innerText = songNames[currentChannel];
+            document.querySelectorAll('.ch-btn').forEach((b,i) => {
+                b.classList.toggle('active', i === curCh);
+            });
+        }
+
+        // --- ЛОГИКА ---
         function startApp() {
             document.getElementById('entry-screen').style.display = 'none';
             document.getElementById('workspace').style.display = 'block';
-            
             const au = document.getElementById('audio');
             au.src = songs[curCh];
             au.volume = 0.5;
             
+            // Обновляем UI при старте
+            //document.getElementById('track-name').innerText = songNames[curCh];
+            
+            initSpores(); 
             render();
             initDrag();
         }
@@ -248,7 +393,6 @@
             const inp = document.getElementById('task-input');
             const val = inp.value.trim();
             if(!val) return;
-            
             tasks.push({ id: Date.now(), txt: val, done: false });
             inp.value = '';
             playSfx('click');
@@ -269,7 +413,7 @@
         }
 
         function save() {
-            try { localStorage.setItem('stas_tasks_final', JSON.stringify(tasks)); } catch(e){}
+            try { localStorage.setItem(DB_KEY, JSON.stringify(tasks)); } catch(e){}
         }
 
         function render() {
@@ -279,7 +423,7 @@
 
             tasks.forEach(t => {
                 const li = document.createElement('li');
-                li.className = `task-item ${t.done ? 'done' : ''}`;
+                li.className = `task-item ${t.done ? 'completed' : ''}`;
                 li.dataset.id = t.id;
                 li.innerHTML = `
                     <div class="checkbox" onclick="toggle(${t.id})"></div>
@@ -290,16 +434,13 @@
             });
         }
 
-        // RADIO
         function setCh(idx) {
             curCh = idx;
             const au = document.getElementById('audio');
             const isPlaying = !au.paused;
             au.src = songs[idx];
             if(isPlaying) au.play();
-            
-            document.querySelectorAll('.ch-btn').forEach((b,i) => 
-                b.classList.toggle('active', i === idx));
+            document.querySelectorAll('.ch-btn').forEach((b,i) => b.classList.toggle('active', i === idx));
             playSfx('click');
         }
 
@@ -309,16 +450,20 @@
             
             if(au.paused) {
                 au.play();
-                btn.innerText = "STOP TRANSMISSION";
+                btn.innerText = "ОСТАНОВИТЬ ЭФИР";
                 btn.classList.add('playing');
+                document.body.classList.add('music-active'); 
+                startThunderLoop(); 
+                triggerLightning(); 
             } else {
                 au.pause();
-                btn.innerText = "START TRANSMISSION";
+                btn.innerText = "НАЧАТЬ ЭФИР";
                 btn.classList.remove('playing');
+                document.body.classList.remove('music-active'); 
+                stopThunderLoop(); 
             }
         }
 
-        // DRAG
         function initDrag() {
             if(typeof Sortable !== 'undefined') {
                 const opts = {
