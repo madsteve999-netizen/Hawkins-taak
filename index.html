@@ -3,226 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stranger Tasks - Elite Stas Edition</title>
-    <!-- Подключаем SortableJS для идеального drag-and-drop на мобилках -->
+    <title>Stranger Tasks - Stas Offline Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         :root {
-            --red: #f41b1b;
-            --dark-red: #8b0000;
-            --bg: #000;
+            --red: #ff1e1e;
+            --dark-red: #8a0a0a;
         }
 
         body, html {
             margin: 0; padding: 0;
-            background: var(--bg);
+            background-color: #050505;
             color: #fff;
             font-family: 'Courier New', Courier, monospace;
-            height: 100%;
+            height: 100%; width: 100%;
             overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Эффект мерцания старого экрана */
+        /* --- ГЕНЕРАТОР ФОНА (ЧИСТЫЙ КОД) --- */
+        .scene {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -5;
+            background: linear-gradient(to bottom, #000000 0%, #1a0505 40%, #5e0000 80%, #ff4444 100%);
+            overflow: hidden;
+        }
+
+        /* Туман внизу */
+        .scene::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
+            z-index: 2;
+        }
+
+        /* Силуэт леса (Вектор SVG зашитый в CSS) */
+        .forest {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 250px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='%23000' d='M0,300 L0,200 L50,150 L100,220 L150,120 L200,230 L250,140 L300,210 L350,100 L400,220 L450,130 L500,240 L550,110 L600,200 L650,140 L700,230 L750,120 L800,210 L850,150 L900,240 L950,100 L1000,220 L1050,130 L1100,200 L1150,150 L1200,200 L1200,300 Z'/%3E%3C/svg%3E");
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            z-index: 1;
+            opacity: 0.9;
+        }
+
+        /* Силуэт детей на велосипедах (Вектор SVG) */
+        .bikes {
+            position: absolute; bottom: 180px; left: 50%; transform: translateX(-50%);
+            width: 300px; height: 100px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Cg fill='%23000'%3E%3Ccircle cx='30' cy='80' r='10'/%3E%3Ccircle cx='60' cy='80' r='10'/%3E%3Cpath d='M30,80 L45,50 L60,80' stroke='%23000' stroke-width='3'/%3E%3Ccircle cx='100' cy='75' r='10'/%3E%3Ccircle cx='130' cy='75' r='10'/%3E%3Cpath d='M100,75 L115,45 L130,75' stroke='%23000' stroke-width='3'/%3E%3C/g%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            z-index: 1;
+            opacity: 0.8;
+            filter: blur(0.5px);
+        }
+
+        /* Споры Изнанки */
+        .spores {
+            position: fixed; inset: 0; pointer-events: none; z-index: 50;
+            background-image: radial-gradient(#fff 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.3;
+            animation: float 20s linear infinite;
+        }
+        @keyframes float { from { background-position: 0 0; } to { background-position: 0 100px; } }
+
+        /* Помехи */
+        .scanlines {
+            position: fixed; inset: 0; pointer-events: none; z-index: 55;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            opacity: 0.3;
+        }
+
+        /* --- ИНТЕРФЕЙС --- */
         @keyframes flicker {
-            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
-            20%, 22%, 24%, 55% { opacity: 0.5; }
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; text-shadow: 0 0 15px var(--red); }
+            20%, 22%, 24%, 55% { opacity: 0.5; text-shadow: none; }
         }
 
         .neon-text {
             color: var(--red);
-            text-shadow: 0 0 10px var(--red), 0 0 20px var(--dark-red);
+            text-shadow: 0 0 15px var(--red), 0 0 30px var(--dark-red);
             text-transform: uppercase;
-            font-weight: bold;
-            animation: flicker 5s infinite linear;
+            font-weight: 900;
+            animation: flicker 4s infinite step-end;
+            letter-spacing: -2px;
         }
 
-        /* Экран входа */
         #entry-screen {
-            position: fixed; inset: 0; background: #000; z-index: 1000;
+            position: fixed; inset: 0; background: #000; z-index: 9999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; padding: 20px;
+            text-align: center;
         }
 
         .btn-enter {
-            background: transparent;
-            border: 2px solid var(--red);
-            color: var(--red);
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            letter-spacing: 5px;
-            cursor: pointer;
-            box-shadow: 0 0 20px rgba(244, 27, 27, 0.4);
-            transition: 0.3s;
-            margin-top: 20px;
-            font-family: serif;
+            background: transparent; border: 2px solid var(--red); color: var(--red);
+            padding: 20px 50px; font-size: 1.5rem; letter-spacing: 4px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 0 30px rgba(255, 0, 0, 0.4); text-transform: uppercase;
+            margin-top: 30px; transition: 0.3s;
         }
         .btn-enter:active { background: var(--red); color: #000; }
 
-        /* Основной интерфейс */
-        #main-app { display: none; padding: 15px; max-width: 500px; margin: 0 auto; padding-bottom: 100px; }
+        #main-app { display: none; padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 100px; position: relative; z-index: 60; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid var(--dark-red); padding-bottom: 20px; }
 
-        .header { text-align: center; margin-bottom: 25px; border-top: 4px solid var(--red); border-bottom: 4px solid var(--red); padding: 15px 0; }
-        .header h1 { font-size: 2rem; margin: 0; letter-spacing: -1px; font-family: serif; }
-
-        /* Радио-панель */
         .radio-deck {
-            background: #080808;
-            border: 1px solid #1a1a1a;
-            padding: 15px;
-            margin-bottom: 25px;
-            border-radius: 2px;
+            background: rgba(20, 10, 10, 0.9); border: 1px solid var(--dark-red);
+            padding: 15px; margin-bottom: 30px; box-shadow: 0 0 20px #000;
         }
-        .radio-display {
-            font-size: 0.6rem; color: var(--red); font-weight: bold; 
-            text-transform: uppercase; margin-bottom: 10px;
-            display: flex; justify-content: space-between;
-            letter-spacing: 2px;
+        .radio-screen {
+            background: #000; border: 1px solid #333; color: var(--red);
+            padding: 8px; text-align: center; margin-bottom: 10px; font-size: 0.8rem; font-weight: bold;
         }
-        .channel-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 5px;
-            margin-bottom: 12px;
-        }
+        .channel-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 10px; }
         .channel-btn {
-            background: #111;
-            border: 1px solid #333;
-            color: #444;
-            padding: 10px 0;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: 0.2s;
-            font-weight: bold;
+            background: #111; border: 1px solid #333; color: #555; padding: 12px 0;
+            cursor: pointer; font-weight: bold; transition: 0.2s;
         }
-        .channel-btn.active {
-            border-color: var(--red);
-            color: var(--red);
-            box-shadow: 0 0 10px rgba(244, 27, 27, 0.4);
+        .channel-btn.active { border-color: var(--red); color: var(--red); background: rgba(255, 0, 0, 0.2); }
+        .play-btn {
+            width: 100%; background: transparent; border: 1px solid var(--red); color: var(--red);
+            padding: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;
         }
-        .play-toggle {
-            width: 100%;
-            background: transparent;
-            border: 1px solid var(--red);
-            color: var(--red);
-            padding: 12px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            cursor: pointer;
-        }
-        .play-toggle.playing { background: var(--red); color: #000; }
+        .play-btn.playing { background: var(--red); color: #000; }
 
-        /* Ввод задач */
-        .input-wrapper { display: flex; gap: 10px; margin-bottom: 30px; }
+        .input-group { position: relative; margin-bottom: 40px; display: flex; }
         #task-input {
-            flex-grow: 1;
-            background: #0a0a0a;
-            border: none;
-            border-bottom: 2px solid var(--dark-red);
-            color: #fff;
-            padding: 12px;
-            font-size: 1.1rem;
-            outline: none;
+            width: 100%; background: rgba(0,0,0,0.6); border: none; border-bottom: 2px solid var(--dark-red);
+            color: #fff; font-size: 1.2rem; padding: 15px; padding-right: 60px; outline: none;
         }
         #task-input:focus { border-color: var(--red); }
         .add-btn {
-            background: var(--dark-red);
-            color: #fff;
-            border: none;
-            width: 50px;
-            height: 50px;
-            font-size: 2rem;
-            cursor: pointer;
-            box-shadow: 0 0 15px rgba(139, 0, 0, 0.4);
+            position: absolute; right: 0; top: 0; height: 100%; width: 60px;
+            background: transparent; border: none; color: var(--red); font-size: 2.5rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
 
-        /* Список задач */
-        .list-container { display: flex; flex-direction: column; }
-        .task-list { list-style: none; padding: 0; margin: 0; min-height: 20px; }
-        
+        .task-list { list-style: none; padding: 0; margin: 0; }
         .task-item {
-            background: rgba(15, 15, 15, 0.98);
-            border: 1px solid #1a1a1a;
-            margin-bottom: 8px;
-            padding: 18px;
-            display: flex;
-            align-items: center;
-            border-radius: 2px;
-            touch-action: none; /* Для SortableJS */
+            background: rgba(20, 20, 20, 0.95); border-left: 4px solid var(--dark-red);
+            margin-bottom: 10px; padding: 15px; display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); touch-action: none;
         }
         
-        /* Текст активных задач — Белый */
-        .task-text { 
-            flex-grow: 1; 
-            font-size: 1.1rem; 
-            color: #ffffff; /* Белый цвет по просьбе Стаса */
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .task-text {
+            flex-grow: 1; font-size: 1.1rem; color: #ffffff !important;
+            font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+            text-shadow: 2px 2px 0 #000;
         }
 
-        /* Текст выполненных задач */
-        .task-item.completed {
-            opacity: 0.3;
-            background: #050505;
-            border-color: transparent;
-        }
+        .task-item.completed { opacity: 0.5; background: rgba(10, 10, 10, 0.8); border-left-color: #333; }
         .task-item.completed .task-text {
-            color: #666;
-            text-decoration: line-through;
-            font-style: italic;
-            font-weight: normal;
+            text-decoration: line-through; color: #888 !important; font-weight: normal; text-shadow: none;
         }
 
-        .check-box {
+        .checkbox {
             width: 24px; height: 24px; border: 2px solid var(--dark-red);
-            margin-right: 15px; flex-shrink: 0; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+            background: #000;
         }
-        .completed .check-box { background: var(--red); border-color: var(--red); }
-        .completed .check-box::after { content: 'L'; transform: rotate(45deg) scaleX(-1); color: #000; font-weight: bold; margin-bottom: 4px; }
+        .completed .checkbox { background: var(--red); border-color: var(--red); }
+        .delete-btn { background: none; border: none; color: #444; font-size: 1.5rem; padding: 0 10px; }
 
-        .delete-btn { color: #333; margin-left: 10px; cursor: pointer; border: none; background: none; font-size: 1.5rem; }
-        .delete-btn:active { color: var(--red); }
-
-        /* Помехи */
-        .scanlines {
-            position: fixed; inset: 0; pointer-events: none; z-index: 500;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
-            background-size: 100% 3px; opacity: 0.2;
-        }
-        
-        /* Стили для перетаскиваемого элемента */
-        .sortable-ghost { opacity: 0.4; background: var(--dark-red); }
-        .sortable-drag { background: #1a1a1a; box-shadow: 0 0 20px var(--red); }
-
+        .sortable-ghost { opacity: 0; }
+        .sortable-drag { background: #000; border: 1px solid var(--red); opacity: 1 !important; transform: scale(1.02); z-index: 1000; }
     </style>
 </head>
 <body>
 
-    <div class="scanlines"></div>
-
-    <!-- ЭКРАН ВХОДА -->
-    <div id="entry-screen">
-        <h1 class="neon-text" style="font-size: 3rem; line-height: 1;">Hawkins<br>Elite Hub</h1>
-        <button class="btn-enter" onclick="initApp()">INITIATE SYSTEM</button>
-        <p style="color: #1a1a1a; font-size: 0.7rem; margin-top: 40px; letter-spacing: 3px;">Property of U.S. Govt.</p>
+    <!-- АВТОНОМНЫЙ ГЕНЕРАТОР ФОНА -->
+    <div class="scene">
+        <div class="forest"></div>
+        <div class="bikes"></div>
+        <div class="spores"></div>
+        <div class="scanlines"></div>
     </div>
 
-    <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
+    <!-- ВХОД -->
+    <div id="entry-screen">
+        <h1 class="neon-text" style="font-size: 4rem; line-height: 0.9; margin-bottom: 30px;">HAWKINS<br>LAB</h1>
+        <button class="btn-enter" onclick="initApp()">ENTER</button>
+        <p style="margin-top: 40px; color: #555; font-size: 0.7rem; letter-spacing: 2px;">RESTRICTED AREA 51</p>
+    </div>
+
+    <!-- ПРИЛОЖЕНИЕ -->
     <div id="main-app">
         <div class="header">
-            <h1 class="neon-text">Mission Log</h1>
+            <h2 class="neon-text">MISSION LOG</h2>
         </div>
 
-        <!-- РАДИО -->
         <div class="radio-deck">
-            <div class="radio-display">
-                <span>COMMS FREQUENCY</span>
-                <span id="track-display">OFFLINE</span>
-            </div>
+            <div class="radio-screen">FREQ: <span id="track-name">SILENCE</span></div>
             <div class="channel-grid">
                 <button class="channel-btn active" onclick="setChannel(0)">1</button>
                 <button class="channel-btn" onclick="setChannel(1)">2</button>
@@ -230,173 +202,119 @@
                 <button class="channel-btn" onclick="setChannel(3)">4</button>
                 <button class="channel-btn" onclick="setChannel(4)">5</button>
             </div>
-            <button class="play-toggle" id="play-btn" onclick="toggleAudio()">Start Transmission</button>
+            <button class="play-btn" id="play-btn" onclick="toggleAudio()">START TRANSMISSION</button>
         </div>
 
-        <!-- ВВОД -->
-        <div class="input-wrapper">
-            <input type="text" id="task-input" placeholder="New objective..." onkeydown="if(event.key==='Enter') addTask()">
+        <div class="input-group">
+            <input type="text" id="task-input" placeholder="NEW OBJECTIVE..." onkeydown="if(event.key==='Enter') addTask()">
             <button class="add-btn" onclick="addTask()">+</button>
         </div>
 
-        <!-- ДВА СПИСКА ДЛЯ СОРТИРОВКИ -->
-        <div class="list-container">
-            <ul id="active-tasks" class="task-list"></ul>
-            <ul id="completed-tasks" class="task-list" style="margin-top: 20px;"></ul>
-        </div>
+        <ul id="active-tasks" class="task-list"></ul>
+        <ul id="completed-tasks" class="task-list" style="margin-top: 40px; border-top: 1px dashed #333; padding-top: 20px;"></ul>
     </div>
 
     <audio id="audio-player" loop></audio>
 
     <script>
-        // --- ДАННЫЕ ---
-        let tasks = JSON.parse(localStorage.getItem('stas_tasks_final_elite')) || [];
-        
+        let tasks = JSON.parse(localStorage.getItem('stas_tasks_offline')) || [];
         const playlist = [
-            { name: "Cerebro 01", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-            { name: "The Void 02", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-            { name: "Mind Flayer 03", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
-            { name: "Laboratory 04", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
-            { name: "Eleven's Theme 05", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" }
+            { name: "THEME", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+            { name: "UPSIDE DOWN", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+            { name: "1984", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
+            { name: "LABORATORY", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
+            { name: "ELEVEN", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" }
         ];
-
         let currentChannel = 0;
         const SFX_CLICK = "https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3";
-        const SFX_DELETE = "https://assets.mixkit.co/active_storage/sfx/2857/2857-preview.mp3";
+        const SFX_TV = "https://assets.mixkit.co/active_storage/sfx/2857/2857-preview.mp3";
 
-        function playSFX(src) {
-            const a = new Audio(src);
-            a.volume = 0.2;
-            a.play().catch(() => {});
-        }
+        function playSFX(src) { try { new Audio(src).play().catch(()=>{}); } catch(e){} }
 
-        // --- ИНИЦИАЛИЗАЦИЯ ---
         function initApp() {
             document.getElementById('entry-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
-            
-            const player = document.getElementById('audio-player');
-            player.src = playlist[currentChannel].url;
-            player.volume = 0.4;
-            
-            updateAudioUI();
+            document.getElementById('audio-player').src = playlist[currentChannel].url;
             renderAll();
-            initDragAndDrop();
+            
+            const opts = {
+                animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', delay: 100,
+                onEnd: () => {
+                    const newTasks = [];
+                    document.querySelectorAll('#active-tasks .task-item').forEach(el => {
+                        const t = tasks.find(x => x.id == el.dataset.id);
+                        if(t) newTasks.push(t);
+                    });
+                    document.querySelectorAll('#completed-tasks .task-item').forEach(el => {
+                        const t = tasks.find(x => x.id == el.dataset.id);
+                        if(t) newTasks.push(t);
+                    });
+                    tasks = newTasks; save();
+                }
+            };
+            Sortable.create(document.getElementById('active-tasks'), opts);
+            Sortable.create(document.getElementById('completed-tasks'), opts);
         }
 
-        // --- РАДИО ---
         function setChannel(idx) {
             currentChannel = idx;
-            const player = document.getElementById('audio-player');
-            const wasPlaying = !player.paused;
-            player.src = playlist[currentChannel].url;
-            if (wasPlaying) player.play();
-            updateAudioUI();
-            playSFX(SFX_CLICK);
+            const p = document.getElementById('audio-player');
+            const wasPlaying = !p.paused;
+            p.src = playlist[idx].url;
+            if(wasPlaying) p.play();
+            updateUI(); playSFX(SFX_CLICK);
         }
 
         function toggleAudio() {
-            const player = document.getElementById('audio-player');
+            const p = document.getElementById('audio-player');
             const btn = document.getElementById('play-btn');
-            if (player.paused) {
-                player.play();
-                btn.innerText = "Stop Transmission";
-                btn.classList.add('playing');
-            } else {
-                player.pause();
-                btn.innerText = "Start Transmission";
-                btn.classList.remove('playing');
-            }
+            if(p.paused) { p.play(); btn.innerText = "STOP TRANSMISSION"; btn.classList.add('playing'); }
+            else { p.pause(); btn.innerText = "START TRANSMISSION"; btn.classList.remove('playing'); }
         }
 
-        function updateAudioUI() {
-            document.getElementById('track-display').innerText = playlist[currentChannel].name;
-            const btns = document.querySelectorAll('.channel-btn');
-            btns.forEach((b, i) => b.classList.toggle('active', i === currentChannel));
-        }
-
-        // --- ЗАДАЧИ ---
-        function addTask() {
-            const input = document.getElementById('task-input');
-            if (!input.value.trim()) return;
-            
-            playSFX(SFX_CLICK);
-            // Добавляем в конец массива
-            tasks.push({
-                id: Date.now(),
-                text: input.value.trim(),
-                completed: false
+        function updateUI() {
+            document.getElementById('track-name').innerText = playlist[currentChannel].name;
+            document.querySelectorAll('.channel-btn').forEach((b,i) => {
+                b.classList.toggle('active', i === currentChannel);
             });
-            input.value = '';
-            save();
-            renderAll();
+        }
+
+        function addTask() {
+            const inp = document.getElementById('task-input');
+            if(!inp.value.trim()) return;
+            tasks.push({ id: Date.now(), text: inp.value.trim(), completed: false });
+            inp.value = ''; playSFX(SFX_CLICK); save(); renderAll();
         }
 
         function toggleTask(id) {
-            playSFX(SFX_CLICK);
             tasks = tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t);
-            save();
-            renderAll();
+            playSFX(SFX_CLICK); save(); renderAll();
         }
 
         function deleteTask(id) {
-            playSFX(SFX_DELETE);
             tasks = tasks.filter(t => t.id !== id);
-            save();
-            renderAll();
+            playSFX(SFX_TV); save(); renderAll();
         }
 
-        function save() {
-            localStorage.setItem('stas_tasks_final_elite', JSON.stringify(tasks));
-        }
+        function save() { localStorage.setItem('stas_tasks_offline', JSON.stringify(tasks)); }
 
         function renderAll() {
-            const activeList = document.getElementById('active-tasks');
-            const completedList = document.getElementById('completed-tasks');
+            const act = document.getElementById('active-tasks');
+            const com = document.getElementById('completed-tasks');
+            act.innerHTML = ''; com.innerHTML = '';
             
-            activeList.innerHTML = '';
-            completedList.innerHTML = '';
-
-            tasks.forEach(task => {
+            tasks.forEach(t => {
                 const li = document.createElement('li');
-                li.className = `task-item ${task.completed ? 'completed' : ''}`;
-                li.dataset.id = task.id;
+                li.className = `task-item ${t.completed ? 'completed' : ''}`;
+                li.dataset.id = t.id;
                 li.innerHTML = `
-                    <div class="check-box" onclick="toggleTask(${task.id})"></div>
-                    <span class="task-text" onclick="toggleTask(${task.id})">${task.text}</span>
-                    <button class="delete-btn" onclick="deleteTask(${task.id})">×</button>
+                    <div class="checkbox" onclick="toggleTask(${t.id})"></div>
+                    <span class="task-text" onclick="toggleTask(${t.id})">${t.text}</span>
+                    <button class="delete-btn" onclick="deleteTask(${t.id})">×</button>
                 `;
-                
-                if (task.completed) completedList.appendChild(li);
-                else activeList.appendChild(li);
+                if(t.completed) com.appendChild(li); else act.appendChild(li);
             });
         }
-
-        // --- DRAG & DROP (SORTABLE JS) ---
-        function initDragAndDrop() {
-            const options = {
-                animation: 250,
-                ghostClass: 'sortable-ghost',
-                dragClass: 'sortable-drag',
-                onEnd: () => {
-                    // Пересобираем массив задач на основе нового порядка в DOM
-                    const newTasks = [];
-                    const allItems = document.querySelectorAll('.task-item');
-                    allItems.forEach(item => {
-                        const id = parseInt(item.dataset.id);
-                        const originalTask = tasks.find(t => t.id === id);
-                        if (originalTask) newTasks.push(originalTask);
-                    });
-                    tasks = newTasks;
-                    save();
-                }
-            };
-
-            Sortable.create(document.getElementById('active-tasks'), options);
-            Sortable.create(document.getElementById('completed-tasks'), options);
-        }
-
     </script>
 </body>
 </html>
-
