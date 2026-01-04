@@ -164,16 +164,23 @@
         /* СТИЛЬНЫЕ SVG ИКОНКИ (ДЛЯ ВЕКНЫ И ЭКРАНА) */
         .t-btn-icon {
             flex: 0.6; background: transparent; border: 1px solid #444;
-            color: #555; cursor: pointer; transition: 0.2s;
+            color: #888; /* Базовый серый цвет */
+            cursor: pointer; transition: 0.2s;
             display: flex; align-items: center; justify-content: center; padding: 0;
+            -webkit-tap-highlight-color: transparent; /* Убирает синюю подсветку на iOS */
         }
         .t-btn-icon svg {
             width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none;
         }
-        .t-btn-icon:hover { border-color: var(--red); color: var(--red); }
         
+        /* FIX ДЛЯ IOS: Hover работает только там, где есть мышь */
+        @media (hover: hover) {
+            .t-btn-icon:hover { border-color: var(--red); color: var(--red); }
+        }
+        
+        /* Активное состояние - всегда красное */
         .t-btn-icon.active { 
-            border-color: var(--red); color: var(--red); 
+            border-color: var(--red) !important; color: var(--red) !important; 
             background: rgba(255,0,0,0.1); box-shadow: 0 0 5px var(--dark-red); 
         }
         .t-btn-icon.active svg { stroke-width: 2.5; filter: drop-shadow(0 0 2px var(--red)); }
@@ -192,7 +199,9 @@
         .t-btn-sec svg {
             width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2;
         }
-        .t-btn-sec:hover { border-color: var(--red); color: var(--red); }
+        @media (hover: hover) {
+            .t-btn-sec:hover { border-color: var(--red); color: var(--red); }
+        }
         .t-btn-sec:active { background: var(--red); color: #000; }
 
         .timer-row-settings {
@@ -699,26 +708,6 @@
             } else {
                 updateCycleStatus();
             }
-        }
-
-        // --- ЛОГИКА ПОГРУЖЕНИЯ (INVOCATION) ---
-        let invokeInterval = null;
-        
-        function startInvocation() {
-            document.body.classList.add('invoking');
-            
-            // ЗВУК УБРАН
-            
-            invokeInterval = setInterval(() => {
-                if (Math.random() > 0.6) {
-                    triggerLightning();
-                }
-            }, 800); 
-        }
-
-        function stopInvocation() {
-            document.body.classList.remove('invoking');
-            clearInterval(invokeInterval);
         }
 
         function initSpores() {
