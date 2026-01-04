@@ -31,10 +31,10 @@
             background-size: cover;
             background-position: center;
             filter: contrast(1.1) brightness(0.7);
-            transition: filter 0.2s; /* Быстрая реакция на молнию */
+            transition: filter 0.2s;
         }
 
-        /* Эффект погружения: затемнение фона (плавное, 3 сек) */
+        /* Эффект погружения */
         body.invoking .bg-layer {
             filter: contrast(1.5) brightness(0.2) sepia(0.5) hue-rotate(-10deg);
             transition: filter 3s ease;
@@ -55,20 +55,12 @@
         #spores-container {
             position: fixed; inset: 0; pointer-events: none; z-index: 3;
             opacity: 0; 
-            transition: opacity 2s ease; /* Медленное появление для музыки */
+            transition: opacity 2s ease;
             overflow: hidden;
         }
         
-        /* Споры при музыке */
-        body.music-active #spores-container { 
-            opacity: 1; 
-        }
-
-        /* Споры при нажатии на заголовок (БЫСТРОЕ ПОЯВЛЕНИЕ) */
-        body.invoking #spores-container {
-            opacity: 1 !important;
-            transition: opacity 0.5s ease; /* Ускорили реакцию */
-        }
+        body.music-active #spores-container { opacity: 1; }
+        body.invoking #spores-container { opacity: 1 !important; transition: opacity 0.5s ease; }
 
         .spore {
             position: absolute; background: white; border-radius: 50%; opacity: 0;
@@ -124,11 +116,8 @@
             transition: all 3s ease; 
         }
 
-        /* Эффект затемнения заголовка */
         body.invoking .header h2 {
-            color: #1a0000;
-            text-shadow: 0 0 5px #000;
-            transform: scale(0.98);
+            color: #1a0000; text-shadow: 0 0 5px #000; transform: scale(0.98);
         }
 
         /* БЛОКИ (Радио и Таймер) */
@@ -172,24 +161,38 @@
         .t-btn-compact:hover { border-color: var(--red); color: var(--red); }
         .t-btn-compact.active { background: var(--red); color: #000; border-color: var(--red); }
         
+        /* СТИЛЬНЫЕ SVG ИКОНКИ (ДЛЯ ВЕКНЫ И ЭКРАНА) */
         .t-btn-icon {
-            flex: 0.5; background: transparent; border: 1px solid #444;
-            color: #888; font-size: 1.2rem; cursor: pointer; transition: 0.2s;
+            flex: 0.6; background: transparent; border: 1px solid #444;
+            color: #555; cursor: pointer; transition: 0.2s;
             display: flex; align-items: center; justify-content: center; padding: 0;
         }
+        .t-btn-icon svg {
+            width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none;
+        }
+        .t-btn-icon:hover { border-color: var(--red); color: var(--red); }
+        
         .t-btn-icon.active { 
             border-color: var(--red); color: var(--red); 
             background: rgba(255,0,0,0.1); box-shadow: 0 0 5px var(--dark-red); 
         }
+        .t-btn-icon.active svg { stroke-width: 2.5; filter: drop-shadow(0 0 2px var(--red)); }
 
+        /* ВТОРОЙ РЯД (ОТКАТ / ОТДЫХ) С SVG */
         .timer-row-secondary {
             display: flex; gap: 5px; margin-bottom: 8px;
         }
         .t-btn-sec {
             flex: 1; background: #111; border: 1px solid #333;
-            color: #666; font-size: 0.7rem; font-weight: bold; padding: 6px 0;
+            color: #666; font-size: 0.7rem; font-weight: bold; padding: 8px 0;
             cursor: pointer; text-transform: uppercase;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: 0.2s;
         }
+        .t-btn-sec svg {
+            width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2;
+        }
+        .t-btn-sec:hover { border-color: var(--red); color: var(--red); }
         .t-btn-sec:active { background: var(--red); color: #000; }
 
         .timer-row-settings {
@@ -251,6 +254,27 @@
             z-index: 2;
         }
 
+        /* ГЛЮК-АНИМАЦИЯ ПРИ НАВЕДЕНИИ/ТАПЕ */
+        .glitch-active {
+            animation: glitch-anim 0.2s infinite linear !important;
+            border-left-color: #fff !important;
+            background: rgba(255, 0, 0, 0.3) !important;
+        }
+
+        .glitch-active .task-text {
+            color: #ff0000 !important;
+            text-shadow: 3px 0 blue, -3px 0 lime !important;
+        }
+
+        @keyframes glitch-anim {
+            0% { transform: translate(0); }
+            20% { transform: translate(-3px, 3px); }
+            40% { transform: translate(-3px, -3px); }
+            60% { transform: translate(3px, 3px); }
+            80% { transform: translate(3px, -3px); }
+            100% { transform: translate(0); }
+        }
+
         .task-item.completed { opacity: 0.6; border-left-color: #444; background: rgba(10,10,10,0.8); }
         .task-item.completed .task-text {
             text-decoration: line-through; color: #999 !important; text-shadow: none; font-weight: normal;
@@ -285,6 +309,7 @@
     <div id="app-ui">
         <div id="workspace">
             <div class="header">
+                <!-- Заголовок с эффектом, но БЕЗ ЗВУКА -->
                 <h2 id="main-header" 
                     onmousedown="startInvocation()" 
                     onmouseup="stopInvocation()" 
@@ -312,14 +337,29 @@
                     <div class="timer-actions">
                         <button class="t-btn-compact" id="t-start-btn" onclick="toggleTimer()">СТАРТ</button>
                         <button class="t-btn-compact" onclick="stopTimer()">СБРОС</button>
-                        <button class="t-btn-icon active" id="vecna-toggle" onclick="toggleVecna()">🔔</button>
-                        <button class="t-btn-icon" id="wakelock-toggle" onclick="toggleWakeLock()">📵</button>
+                        
+                        <!-- Кнопка Векны (Колокол) -->
+                        <button class="t-btn-icon active" id="vecna-toggle" onclick="toggleVecna()">
+                            <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        </button>
+                        
+                        <!-- Кнопка Экрана (Телефон) -->
+                        <button class="t-btn-icon" id="wakelock-toggle" onclick="toggleWakeLock()">
+                            <!-- По умолчанию: перечеркнутый (спящий) -->
+                            <svg id="icon-screen" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" fill="none" stroke-width="2"/><line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2"/></svg>
+                        </button>
                     </div>
                 </div>
                 <!-- Строка 2: Доп функции -->
                 <div class="timer-row-secondary">
-                    <button class="t-btn-sec" onclick="restoreTimerState()">↺ ОТКАТ</button>
-                    <button class="t-btn-sec" onclick="forceBreak()">☕ ОТДЫХ (5 МИН)</button>
+                    <button class="t-btn-sec" onclick="restoreTimerState()">
+                        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                        ОТКАТ
+                    </button>
+                    <button class="t-btn-sec" onclick="forceBreak()">
+                        <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+                        ОТДЫХ (5 МИН)
+                    </button>
                 </div>
                 <!-- Строка 3: Настройки (ВЫПАДАЮЩИЕ СПИСКИ) -->
                 <div class="timer-row-settings">
@@ -408,38 +448,42 @@
             s.play().catch(()=>{});
         }
 
-        // --- ЛОГИКА ПОГРУЖЕНИЯ (INVOCATION) ---
-        let invokeInterval = null;
-        
-        function startInvocation() {
-            document.body.classList.add('invoking');
-            // Звук убрали по просьбе Стаса
-            
-            // Запускаем таймер для молний (частые удары)
-            invokeInterval = setInterval(() => {
-                if (Math.random() > 0.6) {
-                    triggerLightning();
-                }
-            }, 800); 
-        }
+        // --- ГЛЮК-ЭФФЕКТ НА ТАП/ХОВЕР ---
+        function triggerHeaderGlitch() {
+            const h = document.getElementById('main-header');
+            if (h.classList.contains('glitch-active')) return;
 
-        function stopInvocation() {
-            document.body.classList.remove('invoking');
-            clearInterval(invokeInterval);
+            h.classList.add('glitch-active');
+            
+            // ЗВУК УБРАН ПО ПРОСЬБЕ СТАСА
+            
+            // 50% шанс молнии
+            if (Math.random() > 0.5) {
+                triggerLightning();
+            }
+
+            setTimeout(() => {
+                h.classList.remove('glitch-active');
+            }, 600);
         }
 
         let wakeLock = null;
+        const iconScreenOff = '<rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" fill="none" stroke-width="2"/><line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2"/>';
+        const iconScreenOn = '<rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" fill="none" stroke-width="2"/><path d="M12 10v4" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/>';
+
         async function toggleWakeLock() {
             const btn = document.getElementById('wakelock-toggle');
+            const iconSvg = document.getElementById('icon-screen');
+            
             if (!wakeLock) {
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
                     btn.classList.add('active');
-                    btn.innerText = "📱"; 
+                    iconSvg.innerHTML = iconScreenOn; // Иконка включенного
                     wakeLock.addEventListener('release', () => {
                         wakeLock = null;
                         btn.classList.remove('active');
-                        btn.innerText = "📵";
+                        iconSvg.innerHTML = iconScreenOff;
                     });
                 } catch (err) {
                     console.error(err);
@@ -657,6 +701,26 @@
             }
         }
 
+        // --- ЛОГИКА ПОГРУЖЕНИЯ (INVOCATION) ---
+        let invokeInterval = null;
+        
+        function startInvocation() {
+            document.body.classList.add('invoking');
+            
+            // ЗВУК УБРАН
+            
+            invokeInterval = setInterval(() => {
+                if (Math.random() > 0.6) {
+                    triggerLightning();
+                }
+            }, 800); 
+        }
+
+        function stopInvocation() {
+            document.body.classList.remove('invoking');
+            clearInterval(invokeInterval);
+        }
+
         function initSpores() {
             const container = document.getElementById('spores-container');
             for (let i = 0; i < 50; i++) {
@@ -744,6 +808,10 @@
                 li.className = `task-item ${t.done ? 'completed' : ''}`;
                 li.dataset.id = t.id;
                 
+                // ВЕШАЕМ ГЛЮК-ЭФФЕКТ НА ВСЮ ПОВЕРХНОСТЬ
+                li.onmouseenter = triggerGlitch;
+                li.ontouchstart = triggerGlitch;
+                
                 li.innerHTML = `
                     <div class="checkbox" onclick="toggle(${t.id})"></div>
                     <span class="task-text" onclick="toggle(${t.id})">${t.txt}</span>
@@ -782,6 +850,29 @@
                 document.body.classList.remove('music-active'); 
                 stopThunderLoop(); 
             }
+        }
+
+        // --- ГЛЮК-ЭФФЕКТ НА ТАП/ХОВЕР ---
+        function triggerGlitch(e) {
+            const item = e.currentTarget;
+            if (item.classList.contains('glitch-active')) return;
+
+            item.classList.add('glitch-active');
+            
+            // Звук помех (очень тихий)
+            const staticNoise = sfxDel.cloneNode();
+            staticNoise.volume = 0.15;
+            staticNoise.play().catch(()=>{});
+
+            // Шанс 30% вызвать молнию
+            if (Math.random() > 0.7) {
+                triggerLightning();
+            }
+
+            // Убираем эффект через 400мс
+            setTimeout(() => {
+                item.classList.remove('glitch-active');
+            }, 400);
         }
 
         function initDrag() {
