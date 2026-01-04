@@ -20,6 +20,7 @@
             background-color: #000;
             font-family: 'Courier New', Courier, monospace;
             -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         /* --- ФОН --- */
@@ -30,7 +31,13 @@
             background-size: cover;
             background-position: center;
             filter: contrast(1.1) brightness(0.7);
-            transition: filter 0.2s;
+            transition: filter 0.2s; /* Быстрая реакция на молнию */
+        }
+
+        /* Эффект погружения: затемнение фона (плавное, 3 сек) */
+        body.invoking .bg-layer {
+            filter: contrast(1.5) brightness(0.2) sepia(0.5) hue-rotate(-10deg);
+            transition: filter 3s ease;
         }
 
         .overlay {
@@ -47,18 +54,31 @@
         /* --- ЭФФЕКТЫ --- */
         #spores-container {
             position: fixed; inset: 0; pointer-events: none; z-index: 3;
-            opacity: 0; transition: opacity 2s ease; overflow: hidden;
+            opacity: 0; 
+            transition: opacity 2s ease; /* Медленное появление для музыки */
+            overflow: hidden;
         }
-        body.music-active #spores-container { opacity: 1; }
+        
+        /* Споры при музыке */
+        body.music-active #spores-container { 
+            opacity: 1; 
+        }
+
+        /* Споры при нажатии на заголовок (БЫСТРОЕ ПОЯВЛЕНИЕ) */
+        body.invoking #spores-container {
+            opacity: 1 !important;
+            transition: opacity 0.5s ease; /* Ускорили реакцию */
+        }
 
         .spore {
             position: absolute; background: white; border-radius: 50%; opacity: 0;
-            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
         }
 
         @keyframes fall {
             0% { top: -10%; opacity: 0; }
-            10%, 90% { opacity: 0.8; }
+            10% { opacity: 0.9; }
+            90% { opacity: 0.9; }
             100% { top: 110%; opacity: 0; }
         }
         @keyframes sway {
@@ -70,12 +90,10 @@
             position: fixed; inset: 0; z-index: 4; pointer-events: none;
             background: rgba(255, 255, 255, 0.15); mix-blend-mode: hard-light; opacity: 0;
         }
-        .flash-now { animation: thunder-strike 0.3s ease-out; } /* Сделал молнию резче */
+        .flash-now { animation: thunder-strike 0.6s ease-out; }
         @keyframes thunder-strike {
             0%, 100% { opacity: 0; }
-            10% { opacity: 0.9; background: rgba(255, 255, 255, 0.3); } 
-            50% { opacity: 0; }
-            60% { opacity: 0.4; }
+            5% { opacity: 0.8; } 15% { opacity: 0.6; }
         }
 
         /* --- ИНТЕРФЕЙС --- */
@@ -84,7 +102,6 @@
             display: flex; flex-direction: column;
         }
 
-        /* Анимация мерцания текста */
         @keyframes flicker {
             0%, 100% { opacity: 1; text-shadow: 0 0 20px var(--red); }
             50% { opacity: 0.8; text-shadow: 0 0 5px var(--dark-red); }
@@ -103,6 +120,15 @@
             color: var(--red); margin: 0; font-size: 2rem; 
             text-transform: uppercase; text-shadow: 0 0 10px #000;
             animation: flicker 4s infinite alternate; 
+            cursor: pointer;
+            transition: all 3s ease; 
+        }
+
+        /* Эффект затемнения заголовка */
+        body.invoking .header h2 {
+            color: #1a0000;
+            text-shadow: 0 0 5px #000;
+            transform: scale(0.98);
         }
 
         /* БЛОКИ (Радио и Таймер) */
@@ -146,7 +172,6 @@
         .t-btn-compact:hover { border-color: var(--red); color: var(--red); }
         .t-btn-compact.active { background: var(--red); color: #000; border-color: var(--red); }
         
-        /* Кнопки иконок */
         .t-btn-icon {
             flex: 0.5; background: transparent; border: 1px solid #444;
             color: #888; font-size: 1.2rem; cursor: pointer; transition: 0.2s;
@@ -157,7 +182,6 @@
             background: rgba(255,0,0,0.1); box-shadow: 0 0 5px var(--dark-red); 
         }
 
-        /* Второй ряд кнопок таймера (Undo / Break) */
         .timer-row-secondary {
             display: flex; gap: 5px; margin-bottom: 8px;
         }
@@ -177,7 +201,6 @@
         }
         .setting-cell label { font-size: 0.6rem; color: #666; text-transform: uppercase; white-space: nowrap; }
         
-        /* СТИЛЬ ВЫПАДАЮЩИХ СПИСКОВ */
         .setting-cell select {
             width: 50px; background: transparent; border: none; 
             color: var(--red); font-weight: bold; font-family: inherit; font-size: 0.9rem;
@@ -192,16 +215,18 @@
         }
 
         /* Ввод задач */
-        .input-row { display: flex; margin-bottom: 30px; position: relative; }
+        .input-row { display: flex; margin-bottom: 30px; position: relative; gap: 5px; }
         #task-input {
             width: 100%; background: rgba(0,0,0,0.7); border: none; border-bottom: 2px solid var(--dark-red);
             color: #fff; font-size: 1.2rem; padding: 15px; padding-right: 60px; outline: none;
         }
         .add-btn {
-            position: absolute; right: 0; top: 0; height: 100%; width: 60px;
-            background: transparent; border: none; color: var(--red); font-size: 2.5rem;
+            width: 50px;
+            background: transparent; border: 1px solid var(--dark-red); color: var(--red); font-size: 2rem;
             cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
         }
+        .add-btn:active { background: var(--red); color: #000; }
 
         /* Списки */
         ul { list-style: none; padding: 0; margin: 0; }
@@ -213,28 +238,9 @@
             display: flex; align-items: center; gap: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
             touch-action: none;
-            transition: transform 0.1s, box-shadow 0.1s; /* Для плавности глюка */
-        }
-
-        /* ГЛЮК-АНИМАЦИЯ ПРИ НАВЕДЕНИИ/ТАПЕ */
-        @keyframes glitch-skew {
-            0% { transform: skew(0deg); }
-            20% { transform: skew(-10deg) translateX(-2px); }
-            40% { transform: skew(10deg) translateX(2px); }
-            60% { transform: skew(-5deg); }
-            80% { transform: skew(5deg); }
-            100% { transform: skew(0deg); }
-        }
-
-        .task-item:hover, .task-item:active {
-            animation: glitch-skew 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5), inset 0 0 10px rgba(255,0,0,0.2);
-            border-left-color: #fff;
-        }
-
-        .task-item:hover .task-text, .task-item:active .task-text {
-            color: #ff0000 !important;
-            text-shadow: 2px 0 blue, -2px 0 lime; /* Хроматическая аберрация */
+            transition: transform 0.1s;
+            position: relative;
+            overflow: hidden;
         }
 
         .task-text {
@@ -242,6 +248,7 @@
             font-weight: 800; text-transform: uppercase;
             text-shadow: 2px 2px 0 #000; letter-spacing: 0.5px;
             transition: color 0.1s;
+            z-index: 2;
         }
 
         .task-item.completed { opacity: 0.6; border-left-color: #444; background: rgba(10,10,10,0.8); }
@@ -251,11 +258,11 @@
 
         .checkbox {
             width: 26px; height: 26px; border: 2px solid var(--dark-red); background: #000;
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2;
         }
         .completed .checkbox { background: var(--red); border-color: var(--red); }
 
-        .btn-action { background: none; border: none; font-size: 1.2rem; color: #555; padding: 0 8px; cursor: pointer; }
+        .btn-action { background: none; border: none; font-size: 1.2rem; color: #555; padding: 0 8px; cursor: pointer; z-index: 2; }
         .btn-edit:hover { color: #fff; }
         .btn-del:hover { color: var(--red); }
         
@@ -277,7 +284,15 @@
 
     <div id="app-ui">
         <div id="workspace">
-            <div class="header"><h2>СПИСОК ЗАДАЧ</h2></div>
+            <div class="header">
+                <h2 id="main-header" 
+                    onmousedown="startInvocation()" 
+                    onmouseup="stopInvocation()" 
+                    onmouseleave="stopInvocation()"
+                    ontouchstart="startInvocation()" 
+                    ontouchend="stopInvocation()"
+                >СПИСОК ЗАДАЧ</h2>
+            </div>
 
             <!-- БЛОК РАДИО -->
             <div class="control-box">
@@ -393,16 +408,24 @@
             s.play().catch(()=>{});
         }
 
-        // --- ГЛЮК-ЭФФЕКТ НА ТАП/ХОВЕР ---
-        function triggerGlitch() {
-            // Шанс 30% вызвать молнию при касании
-            if (Math.random() > 0.7) {
-                triggerLightning();
-            }
-            // Звук помех (очень тихий)
-            const staticNoise = sfxDel.cloneNode();
-            staticNoise.volume = 0.1;
-            staticNoise.play().catch(()=>{});
+        // --- ЛОГИКА ПОГРУЖЕНИЯ (INVOCATION) ---
+        let invokeInterval = null;
+        
+        function startInvocation() {
+            document.body.classList.add('invoking');
+            // Звук убрали по просьбе Стаса
+            
+            // Запускаем таймер для молний (частые удары)
+            invokeInterval = setInterval(() => {
+                if (Math.random() > 0.6) {
+                    triggerLightning();
+                }
+            }, 800); 
+        }
+
+        function stopInvocation() {
+            document.body.classList.remove('invoking');
+            clearInterval(invokeInterval);
         }
 
         let wakeLock = null;
@@ -720,9 +743,6 @@
                 const li = document.createElement('li');
                 li.className = `task-item ${t.done ? 'completed' : ''}`;
                 li.dataset.id = t.id;
-                // ДОБАВЛЕН ОБРАБОТЧИК НАВЕДЕНИЯ/ТАПА ДЛЯ ГЛЮКА
-                li.onmouseenter = triggerGlitch;
-                li.ontouchstart = triggerGlitch;
                 
                 li.innerHTML = `
                     <div class="checkbox" onclick="toggle(${t.id})"></div>
