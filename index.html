@@ -428,9 +428,19 @@
                 btn.classList.remove('active');
                 document.getElementById('vecna-sfx').pause();
             } else {
-                // Старт
+                // Старт - ВАЖНО: Разблокируем звук сразу при клике
                 btn.innerText = "ПАУЗА";
                 btn.classList.add('active');
+                
+                // ПРОГРЕВ ЗВУКА ВЕКНЫ (хак для мобильных)
+                const vecna = document.getElementById('vecna-sfx');
+                vecna.volume = 0; // Делаем беззвучно
+                vecna.play().then(() => {
+                    vecna.pause(); // Сразу пауза
+                    vecna.volume = 0.8; // Возвращаем громкость
+                    vecna.currentTime = 0; // Сбрасываем
+                }).catch(()=>{});
+
                 startTimer();
             }
         }
