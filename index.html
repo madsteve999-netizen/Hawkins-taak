@@ -151,14 +151,13 @@
         }
         .play-btn.playing { background: var(--red); color: #000; }
 
-        /* --- ТАЙМЕР (НОВЫЙ ДИЗАЙН) --- */
+        /* --- ТАЙМЕР --- */
         /* Ряд 1: Цифры - ЖЕЛЕЗНОЕ ЦЕНТРИРОВАНИЕ */
         .timer-display-row {
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            text-align: center; 
             margin-bottom: 20px; 
             padding-bottom: 10px;
             border-bottom: 1px dashed #444;
@@ -167,6 +166,7 @@
             font-size: 3.5rem; font-weight: 900; color: #fff;
             text-shadow: 0 0 15px var(--red); letter-spacing: 2px;
             font-variant-numeric: tabular-nums; line-height: 1;
+            text-align: center; width: 100%;
         }
 
         /* Ряд 2: Текстовые кнопки */
@@ -194,12 +194,12 @@
             color: #888; cursor: pointer; transition: 0.2s;
             display: flex; align-items: center; justify-content: center; padding: 12px 0;
             -webkit-tap-highlight-color: transparent;
-            width: 100%;
+            width: 100%; min-width: 0;
         }
         /* ЖЕСТКИЙ РАЗМЕР ДЛЯ ИКОНОК */
         .t-btn-icon svg { 
             width: 22px; height: 22px; min-width: 22px; min-height: 22px;
-            stroke: currentColor; stroke-width: 2; fill: none; 
+            stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0;
         }
         @media (hover: hover) { .t-btn-icon:hover { border-color: var(--red); color: var(--red); } }
         
@@ -371,7 +371,6 @@
     <div id="app-ui">
         <div id="workspace">
             <div class="header">
-                <!-- Заголовок с эффектом погружения -->
                 <h2 id="main-header" 
                     onmousedown="startInvocation()" 
                     onmouseup="stopInvocation()" 
@@ -436,7 +435,7 @@
 
                     <!-- Настройки (Шестеренка) -->
                     <button class="t-btn-icon" onclick="openSettingsModal()">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
                     </button>
                 </div>
                 
@@ -758,6 +757,7 @@
 
         function startTimer() {
             if (timerInterval) return;
+            // Устанавливаем целевое время (для работы в фоне)
             timerEndTime = Date.now() + timeLeft * 1000;
             
             timerInterval = setInterval(() => {
@@ -766,6 +766,7 @@
                 
                 if (diff >= 0) {
                     timeLeft = diff;
+                    // ВЕКНА ЭФФЕКТ (на 25 секунде) - ТОЛЬКО В РАБОЧЕЕ ВРЕМЯ
                     if (isWorkSession && timeLeft === 25 && vecnaEnabled) {
                         const vecna = document.getElementById('vecna-sfx');
                         vecna.currentTime = 0;
@@ -861,15 +862,25 @@
                 btn.innerText = "ПАУЗА";
                 btn.classList.add('active');
                 
+                // ВАЖНО: Разблокируем гонг вместе с Векной
                 const vecna = document.getElementById('vecna-sfx');
-                vecna.muted = true; 
-                vecna.play().then(() => {
-                    vecna.pause();
-                    vecna.currentTime = 0;
-                    vecna.muted = false; 
+                const gong = document.getElementById('gong-sfx');
+                
+                vecna.muted = true; gong.muted = true;
+                
+                // Промис для Векны
+                const p1 = vecna.play().then(() => {
+                    vecna.pause(); vecna.currentTime = 0; vecna.muted = false;
+                }).catch(()=>{});
+                
+                // Промис для Гонга
+                const p2 = gong.play().then(() => {
+                    gong.pause(); gong.currentTime = 0; gong.muted = false;
                 }).catch(()=>{});
 
-                startTimer();
+                Promise.all([p1, p2]).then(() => {
+                    startTimer();
+                });
             }
         }
 
@@ -1060,27 +1071,9 @@
         function setCh(idx) {
             curCh = idx;
             const au = document.getElementById('audio');
-            
-            // Если музыка уже играла - продолжаем играть новый трек
-            const btn = document.getElementById('play-btn');
-            const isPlaying = btn.classList.contains('playing');
-            
-            // Сначала ставим на паузу, чтобы избежать AbortError
-            au.pause();
-            
+            const isPlaying = !au.paused;
             au.src = songs[idx];
-            
-            if(isPlaying) {
-                // Используем .then().catch() для обработки ошибок автоплея
-                const playPromise = au.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.error("Playback failed:", error);
-                        // Опционально: можно сбросить кнопку, если не удалось запустить
-                    });
-                }
-            }
-            
+            if(isPlaying) au.play();
             document.querySelectorAll('.ch-btn').forEach((b,i) => b.classList.toggle('active', i === idx));
             playSfx('click');
         }
@@ -1089,31 +1082,19 @@
             const au = document.getElementById('audio');
             const btn = document.getElementById('play-btn');
             
-            if (btn.classList.contains('playing')) {
+            if(au.paused) {
+                au.play();
+                btn.innerText = "ОСТАНОВИТЬ ЭФИР";
+                btn.classList.add('playing');
+                document.body.classList.add('music-active'); 
+                startThunderLoop(); 
+                triggerLightning(); 
+            } else {
                 au.pause();
                 btn.innerText = "НАЧАТЬ ЭФИР";
                 btn.classList.remove('playing');
                 document.body.classList.remove('music-active'); 
                 stopThunderLoop(); 
-            } else {
-                const playPromise = au.play();
-                
-                if (playPromise !== undefined) {
-                    playPromise.then(_ => {
-                        btn.innerText = "ОСТАНОВИТЬ ЭФИР";
-                        btn.classList.add('playing');
-                        document.body.classList.add('music-active'); 
-                        startThunderLoop(); 
-                        triggerLightning(); 
-                    })
-                    .catch(error => {
-                        console.error(error);
-                        alert("ОШИБКА АУДИО: Не удалось запустить поток. Проверьте интернет или выберите другую станцию.");
-                        btn.innerText = "НАЧАТЬ ЭФИР";
-                        btn.classList.remove('playing');
-                        document.body.classList.remove('music-active'); 
-                    });
-                }
             }
         }
 
