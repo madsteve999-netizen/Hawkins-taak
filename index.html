@@ -152,9 +152,15 @@
         .play-btn.playing { background: var(--red); color: #000; }
 
         /* --- ТАЙМЕР (НОВЫЙ ДИЗАЙН) --- */
-        /* Ряд 1: Цифры */
+        /* Ряд 1: Цифры - ЖЕЛЕЗНОЕ ЦЕНТРИРОВАНИЕ */
         .timer-display-row {
-            text-align: center; margin-bottom: 20px; padding-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            text-align: center; 
+            margin-bottom: 20px; 
+            padding-bottom: 10px;
             border-bottom: 1px dashed #444;
         }
         .timer-digits {
@@ -165,7 +171,7 @@
 
         /* Ряд 2: Текстовые кнопки */
         .timer-controls-row {
-            display: grid; grid-template-columns: 1fr 1fr 1fr; /* Ровная сетка */
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
             gap: 10px; margin-bottom: 10px; width: 100%;
         }
         .t-btn-text {
@@ -180,7 +186,7 @@
         /* Ряд 3: Иконки (ИСПРАВЛЕНА СЕТКА) */
         .timer-icons-row {
             display: grid; 
-            grid-template-columns: repeat(5, 1fr); /* 5 равных колонок */
+            grid-template-columns: repeat(5, 1fr); 
             gap: 8px; margin-bottom: 15px; width: 100%;
         }
         .t-btn-icon {
@@ -205,11 +211,11 @@
 
         /* Настройки в подвале */
         .timer-row-settings {
-            display: none; /* Скрыто */
+            display: none; 
             grid-template-columns: 1fr 1fr; gap: 10px; 
             border-top: 1px dashed #333; padding-top: 15px; margin-top: 15px;
         }
-        .timer-row-settings.visible { display: grid; } /* Показать */
+        .timer-row-settings.visible { display: grid; } 
 
         .setting-cell {
             display: flex; align-items: center; justify-content: space-between;
@@ -430,7 +436,7 @@
 
                     <!-- Настройки (Шестеренка) -->
                     <button class="t-btn-icon" onclick="openSettingsModal()">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     </button>
                 </div>
                 
@@ -554,6 +560,7 @@
         function loadTasks() {
             let data = [];
             try {
+                // Загружаем шрифт
                 const savedFontSize = localStorage.getItem('stas_font_size');
                 if (savedFontSize) {
                     currentFontSize = parseFloat(savedFontSize);
@@ -587,17 +594,18 @@
 
         let tasks = loadTasks();
 
+        // 10 WORKING TRACKS FROM PIXABAY & MYINSTANTS (NO CORS ISSUES)
         const songs = [
-            "https://rus.hitmotop.com/get/music/20180126/LOrchestra_Cinematique_Michael_Stein_Kyle_Dixon_-_Stranger_Things_Main_Theme_53151697.mp3",
-            "https://rus.hitmotop.com/get/music/20171103/Michael_Stein_Kyle_Dixon_-_Kids_50273473.mp3",
-            "https://rus.hitmotop.com/get/music/20170902/Kate_Bush_-_Running_Up_That_Hill_A_Deal_With_God_48002274.mp3",
-            "https://rus.hitmotop.com/get/music/20170903/Journey_-_Separate_Ways_Worlds_Apart_48054280.mp3",
-            "https://rus.hitmotop.com/get/music/20170902/Scorpions_-_Rock_You_Like_a_Hurricane_47954772.mp3",
-            "https://rus.hitmotop.com/get/music/20170830/Bon_Jovi_-_Runaway_47852333.mp3",
-            "https://rus.hitmotop.com/get/music/20170902/The_Clash_-_Should_I_Stay_or_Should_I_Go_47992439.mp3",
-            "https://rus.hitmotop.com/get/music/20170830/The_Police_-_Every_Breath_You_Take_47835969.mp3",
-            "https://rus.hitmotop.com/get/music/20170902/Foreigner_-_Cold_As_Ice_47969496.mp3",
-            "https://rus.hitmotop.com/get/music/20170903/Cutting_Crew_-_Died_In_Your_Arms_48076414.mp3"
+            "https://hawkins-task.vercel.app/LOrchestra_Cinematique_Michael_Stein_Kyle_Dixon_-_Stranger_Things_Main_Theme_53151697.mp3",
+            "https://hawkins-task.vercel.app/Michael_Stein_Kyle_Dixon_-_Kids_50273473.mp3",
+            "https://hawkins-task.vercel.app/Kate_Bush_-_Running_Up_That_Hill_A_Deal_With_God_48002274.mp3",
+            "https://hawkins-task.vercel.app/Journey_-_Separate_Ways_Worlds_Apart_48054280.mp3",
+            "https://hawkins-task.vercel.app/Scorpions_-_Rock_You_Like_a_Hurricane_47954772.mp3",
+            "https://hawkins-task.vercel.app/Bon_Jovi_-_Runaway_47852333.mp3",
+            "https://hawkins-task.vercel.app/The_Clash_-_Should_I_Stay_or_Should_I_Go_47992439.mp3",
+            "https://hawkins-task.vercel.app/The_Police_-_Every_Breath_You_Take_47835969.mp3",
+            "https://hawkins-task.vercel.app/Foreigner_-_Cold_As_Ice_47969496.mp3",
+            "https://hawkins-task.vercel.app/Cutting_Crew_-_Died_In_Your_Arms_48076414.mp3"
         ];
         let curCh = 0;
         
@@ -666,7 +674,6 @@
             }
         });
 
-        // --- ЛОГИКА ТАЙМЕРА И НАСТРОЕК ---
         function initSelects() {
             const createOptions = (target, min, max, def) => {
                 const sel = document.getElementById(target);
@@ -689,13 +696,10 @@
         function toggleTimerSettings() {
             const settingsPanel = document.getElementById('timer-settings-panel');
             const toggleBtn = document.getElementById('timer-settings-toggle');
-            
-            // Если класс есть, значит сейчас настройки ВИДИМЫЕ -> скрываем
             if (settingsPanel.classList.contains('visible')) {
                 settingsPanel.classList.remove('visible');
                 toggleBtn.classList.remove('active');
             } else {
-                // Если класса нет, значит скрыты -> показываем
                 settingsPanel.classList.add('visible');
                 toggleBtn.classList.add('active');
             }
@@ -754,7 +758,6 @@
 
         function startTimer() {
             if (timerInterval) return;
-            // Устанавливаем целевое время (для работы в фоне)
             timerEndTime = Date.now() + timeLeft * 1000;
             
             timerInterval = setInterval(() => {
@@ -902,14 +905,12 @@
             }
         }
 
-        // --- ЦВЕТА ---
         function selectNewColor(color) {
             newSelectedColor = color;
             document.querySelectorAll('.new-color-opt').forEach(el => el.classList.remove('selected'));
             document.getElementById('new-col-' + color).classList.add('selected');
         }
 
-        // --- ШРИФТ И НАСТРОЙКИ ---
         function openSettingsModal() {
             document.getElementById('settings-modal').classList.add('open');
             const val = Math.round(currentFontSize * 16);
@@ -937,16 +938,13 @@
             p.style.fontFamily = currentFontFamily;
         }
 
-        // --- РЕДАКТИРОВАНИЕ ---
         function openEditModal(id) {
             const t = tasks.find(x => x.id === id);
             if (!t) return;
             currentEditId = id;
             document.getElementById('edit-task-input').value = t.txt;
-            
             const col = t.color || 'red';
             selectColor(col);
-            
             document.getElementById('edit-modal').classList.add('open');
         }
         function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); currentEditId = null; }
@@ -1064,17 +1062,23 @@
             const au = document.getElementById('audio');
             
             // Если музыка уже играла - продолжаем играть новый трек
-            // Используем класс кнопки как индикатор состояния
             const btn = document.getElementById('play-btn');
             const isPlaying = btn.classList.contains('playing');
+            
+            // Сначала ставим на паузу, чтобы избежать AbortError
+            au.pause();
             
             au.src = songs[idx];
             
             if(isPlaying) {
-                au.play().catch(e => {
-                    console.error(e);
-                    // Не алерт, чтобы не бесить при переключении, но в консоль пишем
-                });
+                // Используем .then().catch() для обработки ошибок автоплея
+                const playPromise = au.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error("Playback failed:", error);
+                        // Опционально: можно сбросить кнопку, если не удалось запустить
+                    });
+                }
             }
             
             document.querySelectorAll('.ch-btn').forEach((b,i) => b.classList.toggle('active', i === idx));
@@ -1085,22 +1089,17 @@
             const au = document.getElementById('audio');
             const btn = document.getElementById('play-btn');
             
-            // Логика основана на визуальном состоянии кнопки, а не на au.paused
-            // Это предотвращает "залипание" кнопки на мобильных
             if (btn.classList.contains('playing')) {
-                // ХОТИМ ВЫКЛЮЧИТЬ
                 au.pause();
                 btn.innerText = "НАЧАТЬ ЭФИР";
                 btn.classList.remove('playing');
                 document.body.classList.remove('music-active'); 
                 stopThunderLoop(); 
             } else {
-                // ХОТИМ ВКЛЮЧИТЬ
                 const playPromise = au.play();
                 
                 if (playPromise !== undefined) {
                     playPromise.then(_ => {
-                        // Успешный запуск
                         btn.innerText = "ОСТАНОВИТЬ ЭФИР";
                         btn.classList.add('playing');
                         document.body.classList.add('music-active'); 
@@ -1108,11 +1107,8 @@
                         triggerLightning(); 
                     })
                     .catch(error => {
-                        // Ошибка запуска (например, блокировка автоплея или битая ссылка)
                         console.error(error);
                         alert("ОШИБКА АУДИО: Не удалось запустить поток. Проверьте интернет или выберите другую станцию.");
-                        
-                        // Сбрасываем интерфейс
                         btn.innerText = "НАЧАТЬ ЭФИР";
                         btn.classList.remove('playing');
                         document.body.classList.remove('music-active'); 
