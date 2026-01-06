@@ -1062,9 +1062,21 @@
         function setCh(idx) {
             curCh = idx;
             const au = document.getElementById('audio');
-            const isPlaying = !au.paused;
+            
+            // Если музыка уже играла - продолжаем играть новый трек
+            // Используем класс кнопки как индикатор состояния
+            const btn = document.getElementById('play-btn');
+            const isPlaying = btn.classList.contains('playing');
+            
             au.src = songs[idx];
-            if(isPlaying) au.play();
+            
+            if(isPlaying) {
+                au.play().catch(e => {
+                    console.error(e);
+                    // Не алерт, чтобы не бесить при переключении, но в консоль пишем
+                });
+            }
+            
             document.querySelectorAll('.ch-btn').forEach((b,i) => b.classList.toggle('active', i === idx));
             playSfx('click');
         }
@@ -1073,19 +1085,39 @@
             const au = document.getElementById('audio');
             const btn = document.getElementById('play-btn');
             
-            if(au.paused) {
-                au.play();
-                btn.innerText = "ОСТАНОВИТЬ ЭФИР";
-                btn.classList.add('playing');
-                document.body.classList.add('music-active'); 
-                startThunderLoop(); 
-                triggerLightning(); 
-            } else {
+            // Логика основана на визуальном состоянии кнопки, а не на au.paused
+            // Это предотвращает "залипание" кнопки на мобильных
+            if (btn.classList.contains('playing')) {
+                // ХОТИМ ВЫКЛЮЧИТЬ
                 au.pause();
                 btn.innerText = "НАЧАТЬ ЭФИР";
                 btn.classList.remove('playing');
                 document.body.classList.remove('music-active'); 
                 stopThunderLoop(); 
+            } else {
+                // ХОТИМ ВКЛЮЧИТЬ
+                const playPromise = au.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
+                        // Успешный запуск
+                        btn.innerText = "ОСТАНОВИТЬ ЭФИР";
+                        btn.classList.add('playing');
+                        document.body.classList.add('music-active'); 
+                        startThunderLoop(); 
+                        triggerLightning(); 
+                    })
+                    .catch(error => {
+                        // Ошибка запуска (например, блокировка автоплея или битая ссылка)
+                        console.error(error);
+                        alert("ОШИБКА АУДИО: Не удалось запустить поток. Проверьте интернет или выберите другую станцию.");
+                        
+                        // Сбрасываем интерфейс
+                        btn.innerText = "НАЧАТЬ ЭФИР";
+                        btn.classList.remove('playing');
+                        document.body.classList.remove('music-active'); 
+                    });
+                }
             }
         }
 
