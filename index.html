@@ -201,7 +201,6 @@
         }
         .t-btn-icon.active svg { stroke-width: 2.5; filter: drop-shadow(0 0 2px var(--red)); }
 
-        /* Настройки в подвале */
         .timer-row-settings {
             display: none; 
             grid-template-columns: 1fr 1fr; gap: 10px; 
@@ -300,6 +299,77 @@
         .list-title { color: #888; font-size: 0.9rem; text-align: center; margin-bottom: 15px; letter-spacing: 3px; text-shadow: 1px 1px 2px #000; text-transform: uppercase; font-weight: bold; }
         #completed-list { margin-top: 50px; padding-top: 30px; border-top: 1px dashed #333; }
 
+        /* --- СТИЛИ ДЛЯ ЗАМЕТОК (NOTES) --- */
+        #notes-modal .modal-box {
+            width: 95%; max-width: 800px; height: 90vh; 
+            padding: 0; border: 3px double var(--red); 
+            position: relative;
+            background: #000;
+        }
+
+        .notes-container {
+            display: flex; flex-direction: column; width: 100%; height: 100%;
+        }
+
+        .notes-toolbar {
+            display: flex; gap: 5px; padding: 10px; border-bottom: 1px solid var(--dark-red);
+            background: rgba(20, 0, 0, 0.9); flex-wrap: wrap; justify-content: center;
+        }
+
+        .toolbar-btn {
+            background: #111; border: 1px solid #444; color: #ccc;
+            padding: 5px 10px; font-weight: bold; cursor: pointer; min-width: 30px;
+        }
+        .toolbar-btn:active { background: var(--red); color: #000; }
+        
+        .toolbar-select {
+            background: #000; border: 1px solid #444; color: #fff; padding: 5px; outline: none;
+        }
+
+        /* Область редактора - МЯТАЯ БУМАГА */
+        #notes-editor {
+            flex: 1; padding: 20px; overflow-y: auto; outline: none;
+            font-family: 'Courier New', Courier, monospace; color: #eee;
+            line-height: 1.5;
+            background-color: #222;
+            background-image: url('https://images.unsplash.com/photo-1574169208507-84376194878b?q=80&w=1000&auto=format&fit=crop'); 
+            background-size: cover;
+            background-blend-mode: multiply; 
+            box-shadow: inset 0 0 100px 40px #000; 
+            caret-color: var(--red);
+        }
+        
+        /* Стили для чекбоксов внутри заметок */
+        .checklist-item {
+            display: flex; 
+            align-items: flex-start; /* Выравнивание по верху для многострочного текста */
+            margin: 5px 0;
+        }
+        .checklist-item input[type="checkbox"] {
+            margin-right: 10px; 
+            width: 16px; height: 16px; 
+            accent-color: var(--red);
+            cursor: pointer;
+            margin-top: 4px; /* Поправка по вертикали */
+        }
+        /* ВАЖНО: span для текста, чтобы Enter работал корректно */
+        .checklist-item span {
+            flex: 1; outline: none; min-height: 1.5em; word-break: break-word;
+        }
+
+        .notes-footer {
+            padding: 10px; display: flex; gap: 10px; border-top: 1px solid var(--dark-red);
+            background: #111;
+        }
+        
+        .notes-close-x {
+            position: absolute; top: -15px; right: -15px;
+            width: 30px; height: 30px; background: #000; border: 2px solid var(--red);
+            color: var(--red); font-weight: bold; font-size: 1.2rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; border-radius: 50%; z-index: 10;
+        }
+
         /* Модальные окна */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 999;
@@ -363,7 +433,7 @@
         <div id="workspace">
             <div class="header">
                 <h2 id="main-header" 
-                    onmousedown="startInvocation(event)" 
+                    onmousedown="startInvocation()" 
                     onmouseup="stopInvocation()" 
                     onmouseleave="stopInvocation()"
                     ontouchstart="startInvocation(event)" 
@@ -401,7 +471,7 @@
                 <div class="timer-controls-row">
                     <button class="t-btn-text" id="t-start-btn" onclick="toggleTimer()">СТАРТ</button>
                     <button class="t-btn-text" onclick="fullReset()">СБРОС</button>
-                    <button class="t-btn-text" onclick="restoreTimerState()">ОТКАТ</button>
+                    <button class="t-btn-text" onclick="openNotes()">ЗАМЕТКИ</button>
                 </div>
 
                 <!-- 3. ИКОНКИ (ЭТАЖ 3 - РОВНАЯ СЕТКА) -->
@@ -424,7 +494,7 @@
                         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </button>
 
-                    <!-- Настройки (Шестеренка) - ИСПРАВЛЕНА НА ЖИРНУЮ И КРУГЛУЮ -->
+                    <!-- Настройки (Шестеренка) -->
                     <button class="t-btn-icon" onclick="openSettingsModal()">
                         <svg viewBox="0 0 24 24" style="fill: currentColor; stroke: none;">
                             <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
@@ -481,14 +551,46 @@
         </div>
     </div>
 
-    <!-- МОДАЛКА УДАЛЕНИЯ -->
-    <div id="delete-modal" class="modal-overlay">
+    <!-- МОДАЛКА ЗАМЕТОК -->
+    <div id="notes-modal" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title">ВНИМАНИЕ</div>
-            <div style="color:#fff; text-align:center; margin-bottom:20px; font-size:1.1rem;">УДАЛИТЬ АКТИВНУЮ ЗАДАЧУ?</div>
-            <div class="modal-actions">
-                <button class="modal-btn" onclick="closeDeleteModal()">НЕТ</button>
-                <button class="modal-btn primary" onclick="confirmDelete()">ДА, УДАЛИТЬ</button>
+            <button class="notes-close-x" onclick="checkNotesClose()">X</button>
+            <div class="notes-container">
+                <div class="notes-toolbar">
+                    <button class="toolbar-btn" onclick="formatDoc('bold')" title="Жирный"><b>B</b></button>
+                    <button class="toolbar-btn" onclick="formatDoc('italic')" title="Курсив"><i>I</i></button>
+                    <button class="toolbar-btn" onclick="formatDoc('underline')" title="Подчеркнуть"><u>U</u></button>
+                    
+                    <!-- Кнопка Чеклист -->
+                    <button class="toolbar-btn" onclick="insertChecklist()" title="Чеклист">☑</button>
+
+                    <select class="toolbar-select" onchange="formatDoc('fontName', this.value)">
+                        <option value="Courier New">Courier</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Times New Roman">Times</option>
+                    </select>
+
+                    <select class="toolbar-select" onchange="formatDoc('fontSize', this.value)">
+                        <option value="3">Норм</option>
+                        <option value="5">Крупно</option>
+                        <option value="7">Огромно</option>
+                    </select>
+                    
+                    <select class="toolbar-select" onchange="formatDoc('foreColor', this.value)">
+                        <option value="white">Белый</option>
+                        <option value="red">Красный</option>
+                        <option value="yellow">Желтый</option>
+                        <option value="#888">Серый</option>
+                    </select>
+                </div>
+                
+                <!-- Редактор -->
+                <div id="notes-editor" contenteditable="true"></div>
+                
+                <div class="notes-footer">
+                    <button class="modal-btn" onclick="checkNotesClose()">ЗАКРЫТЬ БЕЗ СОХРАНЕНИЯ</button>
+                    <button class="modal-btn primary" onclick="saveNotes()">СОХРАНИТЬ</button>
+                </div>
             </div>
         </div>
     </div>
@@ -990,11 +1092,9 @@
             if (!t) return;
 
             if (!t.done) {
-                // Активная задача - показываем кастомную модалку
                 taskToDeleteId = id;
                 document.getElementById('delete-modal').classList.add('open');
             } else {
-                // Выполненная - удаляем сразу
                 executeDelete(id);
             }
         }
@@ -1055,6 +1155,79 @@
             const au = document.getElementById('audio');
             au.src = songs[curCh];
             au.volume = 0.5;
+            
+            // ИНИЦИАЛИЗАЦИЯ ENTER для заметок
+            document.getElementById('notes-editor').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const selection = window.getSelection();
+                    const range = selection.getRangeAt(0);
+                    
+                    let currentItem = range.commonAncestorContainer;
+                    if (currentItem.nodeType === 3) currentItem = currentItem.parentNode;
+                    
+                    const checklistItem = currentItem.closest('.checklist-item');
+                    
+                    if (checklistItem) {
+                        // Check if current item is empty to exit list
+                        const span = checklistItem.querySelector('span');
+                        const text = span ? span.textContent.replace(/\u00A0/g, '').trim() : '';
+                        
+                        if (text === '') {
+                             e.preventDefault();
+                             // Turn into regular div
+                             const regularLine = document.createElement('div');
+                             regularLine.innerHTML = '<br>'; 
+                             checklistItem.replaceWith(regularLine);
+                             
+                             const newRange = document.createRange();
+                             newRange.setStart(regularLine, 0);
+                             newRange.collapse(true);
+                             selection.removeAllRanges();
+                             selection.addRange(newRange);
+                             return;
+                        }
+
+                        e.preventDefault();
+                        
+                        // Создаем новый пункт
+                        const newItem = document.createElement('div');
+                        newItem.className = 'checklist-item';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        
+                        const newSpan = document.createElement('span'); 
+                        newSpan.textContent = '\u00A0'; 
+                        
+                        newItem.appendChild(checkbox);
+                        newItem.appendChild(newSpan);
+                        
+                        checklistItem.after(newItem);
+                        
+                        // Фокус на новый спан
+                        const newRange = document.createRange();
+                        if (newSpan.firstChild) {
+                             newRange.setStart(newSpan.firstChild, 0);
+                        } else {
+                             newRange.setStart(newSpan, 0);
+                        }
+                        
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }
+            });
+
+            document.getElementById('notes-editor').addEventListener('change', function(e) {
+                if (e.target.type === 'checkbox') {
+                    if (e.target.checked) {
+                        e.target.setAttribute('checked', 'true');
+                    } else {
+                        e.target.removeAttribute('checked');
+                    }
+                }
+            });
         }
 
         function addTask() {
@@ -1071,6 +1244,12 @@
             const t = tasks.find(x => x.id === id);
             if(t) t.done = !t.done;
             playSfx('click');
+            save(); render();
+        }
+
+        function del(id) {
+            tasks = tasks.filter(x => x.id !== id);
+            playSfx('del');
             save(); render();
         }
 
@@ -1177,6 +1356,108 @@
         }
 
         window.onload = initApp;
+
+        // --- ЗАМЕТКИ (NOTES) ФУНКЦИОНАЛ ---
+        const NOTES_KEY = 'STRANGER_THINGS_NOTES';
+        let originalNotesContent = '';
+
+        function openNotes() {
+            const modal = document.getElementById('notes-modal');
+            const editor = document.getElementById('notes-editor');
+            const savedNotes = localStorage.getItem(NOTES_KEY) || '';
+            
+            editor.innerHTML = savedNotes;
+            originalNotesContent = savedNotes; 
+            
+            modal.classList.add('open');
+        }
+
+        function saveNotes() {
+            const editor = document.getElementById('notes-editor');
+            const content = editor.innerHTML;
+            localStorage.setItem(NOTES_KEY, content);
+            
+            const modal = document.getElementById('notes-modal');
+            modal.classList.remove('open');
+        }
+
+        function checkNotesClose() {
+            const editor = document.getElementById('notes-editor');
+            const currentContent = editor.innerHTML;
+            
+            if (currentContent !== originalNotesContent) {
+                if (confirm("В заметках есть несохраненные изменения. Точно закрыть?")) {
+                    closeNotesForce();
+                }
+            } else {
+                closeNotesForce();
+            }
+        }
+
+        function closeNotesForce() {
+            document.getElementById('notes-modal').classList.remove('open');
+        }
+
+        function formatDoc(cmd, value = null) {
+            if (value) {
+                document.execCommand(cmd, false, value);
+            } else {
+                document.execCommand(cmd);
+            }
+            // Возвращаем фокус в редактор
+            document.getElementById('notes-editor').focus();
+        }
+        
+        function insertChecklist() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            const range = selection.getRangeAt(0);
+            const text = selection.toString();
+            
+            // Разбиваем текст по строкам
+            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+
+            if (lines.length === 0) {
+                // Если ничего не выделено, просто вставляем пустой чекбокс
+                const div = createChecklistItem('');
+                range.deleteContents();
+                range.insertNode(div);
+                
+                // Ставим курсор внутрь span
+                const newRange = document.createRange();
+                newRange.setStart(div.querySelector('span'), 0);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+            } else {
+                // Если выделено несколько строк
+                const fragment = document.createDocumentFragment();
+                lines.forEach(line => {
+                    fragment.appendChild(createChecklistItem(line));
+                });
+                range.deleteContents();
+                range.insertNode(fragment);
+            }
+            
+            document.getElementById('notes-editor').focus();
+        }
+
+        function createChecklistItem(text) {
+            const div = document.createElement('div');
+            div.className = 'checklist-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            
+            const span = document.createElement('span');
+            // Если текст пустой, добавляем неразрывный пробел, чтобы курсор мог встать
+            span.textContent = text || '\u00A0';
+            
+            div.appendChild(checkbox);
+            div.appendChild(span);
+            return div;
+        }
 
     </script>
 </body>
