@@ -675,7 +675,7 @@
     <!-- МОДАЛКА УДАЛЕНИЯ -->
     <div id="delete-modal" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title">УДАЛИТЬ ЗАДАЧУ?</div>
+            <div class="modal-title" style="font-size: 1.1rem; line-height: 1.4;">ДЕЙСТВИТЕЛЬНО ХОТИТЕ УДАЛИТЬ АКТИВНУЮ ЗАДАЧУ?</div>
             <div class="modal-actions">
                 <button class="modal-btn" onclick="closeDeleteModal()">НЕТ</button>
                 <button class="modal-btn primary" onclick="confirmDelete()">ДА, УНИЧТОЖИТЬ</button>
@@ -724,6 +724,7 @@
         let newSelectedColor = 'red';
         let currentFontSize = 1.1;
         let currentFontFamily = "'Courier New', Courier, monospace";
+        let taskToDeleteId = null; // Глобальная переменная для удаления
 
         function loadTasks() {
             let data = [];
@@ -1158,16 +1159,16 @@
             closeEditModal();
         }
 
-        let taskToDeleteId = null;
-
         function del(id) {
             const t = tasks.find(x => x.id === id);
             if (!t) return;
 
             if (!t.done) {
+                // Active task -> Show Warning
                 taskToDeleteId = id;
                 document.getElementById('delete-modal').classList.add('open');
             } else {
+                // Completed task -> Delete immediately
                 executeDelete(id);
             }
         }
@@ -1317,12 +1318,6 @@
             const t = tasks.find(x => x.id === id);
             if(t) t.done = !t.done;
             playSfx('click');
-            save(); render();
-        }
-
-        function del(id) {
-            tasks = tasks.filter(x => x.id !== id);
-            playSfx('del');
             save(); render();
         }
 
