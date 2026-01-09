@@ -298,7 +298,7 @@
 
         .timer-controls-row {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 10px;
             margin-bottom: 10px;
             width: 100%;
@@ -951,74 +951,6 @@
         .toast.show {
             opacity: 1;
         }
-
-        /* --- КАЛЬКУЛЯТОР --- */
-        .calc-box {
-            max-width: 350px !important;
-            background: #000;
-            border: 4px solid var(--red);
-            box-shadow: 0 0 20px var(--dark-red), inset 0 0 20px rgba(50, 0, 0, 0.5);
-        }
-
-        .calc-screen {
-            width: 100%;
-            background: #110000;
-            color: var(--red);
-            font-size: 2.5rem;
-            text-align: right;
-            padding: 15px;
-            margin-bottom: 20px;
-            border: 2px solid var(--dark-red);
-            font-family: 'Courier New', monospace;
-            text-shadow: 0 0 10px var(--red);
-            overflow-x: auto;
-            min-height: 70px;
-        }
-
-        .calc-keys {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            width: 100%;
-        }
-
-        .calc-btn {
-            background: #111;
-            border: 1px solid #444;
-            color: #ccc;
-            font-size: 1.5rem;
-            padding: 15px 0;
-            cursor: pointer;
-            transition: 0.2s;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .calc-btn:active {
-            background: var(--red);
-            color: #000;
-            box-shadow: 0 0 15px var(--red);
-        }
-
-        .calc-btn.op {
-            border-color: var(--dark-red);
-            color: var(--red);
-        }
-
-        .calc-btn.equals {
-            grid-column: 4;
-            grid-row: 4 / span 2;
-            background: rgba(50, 0, 0, 0.5);
-            border-color: var(--red);
-            height: 100%;
-        }
-
-        .calc-btn.zero {
-            grid-column: 1 / span 2;
-        }
     </style>
 </head>
 
@@ -1069,7 +1001,6 @@
                     <button class="t-btn-text" id="t-start-btn" onclick="toggleTimer()">СТАРТ</button>
                     <button class="t-btn-text" onclick="fullReset()">СБРОС</button>
                     <button class="t-btn-text" onclick="openNotes()">ЗАМЕТКИ</button>
-                    <button class="t-btn-text" onclick="openCalculator()">КАЛЬКУЛЯТОР</button>
                 </div>
 
                 <!-- 3. ИКОНКИ (ЭТАЖ 3 - РОВНАЯ СЕТКА) -->
@@ -1324,41 +1255,11 @@
         </div>
     </div>
 
-    <!-- МОДАЛКА КАЛЬКУЛЯТОРА -->
-    <div id="calculator-modal" class="modal-overlay">
-        <div class="modal-box calc-box">
-            <div class="calc-screen" id="calc-display">0</div>
-            <div class="calc-keys">
-                <button class="calc-btn op" onclick="calcOp('C')">C</button>
-                <button class="calc-btn op" onclick="calcOp('/')">/</button>
-                <button class="calc-btn op" onclick="calcOp('*')">*</button>
-                <button class="calc-btn op" onclick="calcOp('back')">←</button>
-
-                <button class="calc-btn" onclick="calcNum(7)">7</button>
-                <button class="calc-btn" onclick="calcNum(8)">8</button>
-                <button class="calc-btn" onclick="calcNum(9)">9</button>
-                <button class="calc-btn op" onclick="calcOp('-')">-</button>
-
-                <button class="calc-btn" onclick="calcNum(4)">4</button>
-                <button class="calc-btn" onclick="calcNum(5)">5</button>
-                <button class="calc-btn" onclick="calcNum(6)">6</button>
-                <button class="calc-btn op" onclick="calcOp('+')">+</button>
-
-                <button class="calc-btn" onclick="calcNum(1)">1</button>
-                <button class="calc-btn" onclick="calcNum(2)">2</button>
-                <button class="calc-btn" onclick="calcNum(3)">3</button>
-                <button class="calc-btn equals" onclick="calcOp('=')">=</button>
-
-                <button class="calc-btn zero" onclick="calcNum(0)">0</button>
-                <button class="calc-btn" onclick="calcNum('.')">.</button>
-            </div>
-            <button class="modal-btn" onclick="closeCalculator()" style="margin-top: 20px; width: 100%;">НА ГЛАВНЫЙ
-                ЭКРАН</button>
-        </div>
-    </div>
-
     <!-- АУДИО -->
     <audio id="audio" loop></audio>
+    <!-- Silent Loop for iOS Background Timer -->
+    <audio id="silence-loop" loop
+        src="data:audio/mp3;base64,//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD//////////////////////////////////////////////////////////////////wAAAP//OEAAAAAAAAAAAAAAAAAAAAAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAAAAAAAAAAAAACCAAAAAAAAABAAAA//OECQAAAAABIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//OECQAAAAABIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"></audio>
     <audio id="vecna-sfx"
         src="https://www.myinstants.com/media/sounds/stranger-things-vecna-grandfather-clock.mp3"></audio>
     <audio id="gong-sfx" src="https://www.myinstants.com/media/sounds/undertakers-bell-1.mp3" loop></audio>
@@ -1723,11 +1624,14 @@
                     gong.muted = false;
                 }).catch(() => { });
 
+                ensureAudioContext(); // Enable background mode
                 startTimer();
             }
         }
 
         function stopTimer() {
+            const silence = document.getElementById('silence-loop');
+            silence.pause();
             fullReset();
         }
 
@@ -2076,6 +1980,10 @@
                     scrollSensitivity: 150,
                     scrollSpeed: 20,
                     bubbleScroll: true,
+                    forceFallback: true, // Fix for iOS scrolling
+                    fallbackClass: 'sortable-fallback',
+                    fallbackOnBody: true,
+                    touchStartThreshold: 5,
                     onEnd: () => {
                         const newOrder = [];
                         document.querySelectorAll('.task-item').forEach(el => {
@@ -2203,59 +2111,13 @@
             return div;
         }
 
-        // --- CALCULATOR LOGIC ---
-        let calcVal = '0';
-
-        function openCalculator() {
-            document.getElementById('calculator-modal').classList.add('open');
-            calcVal = '0';
-            updateCalcDisplay();
-        }
-        function closeCalculator() {
-            document.getElementById('calculator-modal').classList.remove('open');
-        }
-
-        function updateCalcDisplay() {
-            const display = document.getElementById('calc-display');
-            display.innerText = calcVal;
-        }
-
-        function calcNum(n) {
-            if (calcVal === '0' && n !== '.') calcVal = '';
-            if (n === '.' && calcVal.includes('.')) {
-                // Check if dot is in the last number segment (after last operator)
-                const segments = calcVal.split(/[\+\-\*\/]/);
-                const lastSeg = segments[segments.length - 1];
-                if (lastSeg.includes('.')) return;
+        function ensureAudioContext() {
+            // Play silence to allow background media session on iOS
+            const silence = document.getElementById('silence-loop');
+            const mainAudio = document.getElementById('audio');
+            if (mainAudio.paused && silence.paused) {
+                silence.play().catch(() => { });
             }
-            if (calcVal.length > 15) return;
-
-            calcVal += n;
-            updateCalcDisplay();
-        }
-
-        function calcOp(op) {
-            if (op === 'C') {
-                calcVal = '0';
-            } else if (op === 'back') {
-                calcVal = calcVal.slice(0, -1);
-                if (calcVal === '') calcVal = '0';
-            } else if (op === '=') {
-                try {
-                    const res = eval(calcVal);
-                    calcVal = String(res);
-                } catch (e) {
-                    calcVal = 'Err';
-                }
-            } else {
-                const last = calcVal.slice(-1);
-                if (['+', '-', '*', '/'].includes(last)) {
-                    calcVal = calcVal.slice(0, -1) + op;
-                } else {
-                    calcVal += op;
-                }
-            }
-            updateCalcDisplay();
         }
 
     </script>
