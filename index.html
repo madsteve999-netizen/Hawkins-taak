@@ -2922,21 +2922,32 @@
             if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 // Update local notes from cloud
                 if (newRecord && newRecord.content !== undefined) {
-                    console.log('Updating notes from cloud');
+                    console.log('Updating notes from cloud, content length:', newRecord.content.length);
                     const NOTES_KEY = 'stas_notes';
                     const currentContent = localStorage.getItem(NOTES_KEY) || '';
 
-                    // Only update if content is different to avoid loops
-                    if (currentContent !== newRecord.content) {
-                        localStorage.setItem(NOTES_KEY, newRecord.content);
+                    console.log('Current content length:', currentContent.length);
+                    console.log('New content length:', newRecord.content.length);
+                    console.log('Contents equal?', currentContent === newRecord.content);
 
-                        // Update editor if notes modal is open
-                        const editor = document.getElementById('notes-editor');
-                        if (editor && document.getElementById('notes-modal').classList.contains('open')) {
+                    // Always update localStorage
+                    localStorage.setItem(NOTES_KEY, newRecord.content);
+
+                    // ALWAYS update editor if notes modal is open
+                    const notesModal = document.getElementById('notes-modal');
+                    const editor = document.getElementById('notes-editor');
+
+                    if (notesModal && editor) {
+                        const isOpen = notesModal.classList.contains('open');
+                        console.log('Notes modal open?', isOpen);
+
+                        if (isOpen) {
+                            console.log('Updating editor innerHTML');
                             editor.innerHTML = newRecord.content;
+                            showToast('ЗАМЕТКИ ОБНОВЛЕНЫ ИЗ ОБЛАКА');
                         }
-
-                        showToast('ЗАМЕТКИ ОБНОВЛЕНЫ ИЗ ОБЛАКА');
+                    } else {
+                        console.log('Editor or modal not found');
                     }
                 }
             }
