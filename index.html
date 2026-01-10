@@ -2106,7 +2106,13 @@
             const val = inp.value.trim();
             if (!val) return;
 
-            const newTask = { id: Date.now(), txt: val, done: false, color: newSelectedColor };
+            const newTask = {
+                id: Date.now(),
+                txt: val,
+                done: false,
+                color: newSelectedColor,
+                order_index: tasks.length
+            };
             tasks.push(newTask);
             inp.value = '';
             playSfx('click');
@@ -2120,7 +2126,7 @@
         }
 
         async function uploadTaskToCloud(task) {
-            if (!currentUser || !supabase) return;
+            if (!currentUser || !supabaseClient) return;
             showSyncIndicator();
 
             try {
@@ -2130,17 +2136,19 @@
                         user_id: currentUser.id,
                         title: task.txt,
                         is_completed: task.done,
-                        color: task.color || 'red'
+                        color: task.color || 'red',
+                        order_index: task.order_index || 0
                     })
                     .select()
                     .single();
 
                 if (error) throw error;
 
-                // Update local task with cloud ID
+                // Update local task with cloud ID and order_index
                 const localTask = tasks.find(t => t.id === task.id);
                 if (localTask && data) {
                     localTask.id = data.id;
+                    localTask.order_index = data.order_index;
                     save();
                 }
             } catch (error) {
@@ -2269,7 +2277,18 @@
                             if (found) newOrder.push(found);
                         });
                         tasks = newOrder;
+
+                        // Update order_index for all tasks
+                        tasks.forEach((task, index) => {
+                            task.order_index = index;
+                        });
+
                         save();
+
+                        // Sync order to cloud if logged in
+                        if (currentUser) {
+                            updateTaskOrderInCloud();
+                        }
                     }
                 };
                 Sortable.create(document.getElementById('active-list'), opts);
@@ -2419,7 +2438,7 @@
 
         // ========== TASK SYNCHRONIZATION ==========
         async function syncTasksOnLogin() {
-            if (!currentUser || !supabase) return;
+            if (!currentUser || !supabaseClient) return;
             showSyncIndicator();
 
             try {
@@ -2431,13 +2450,14 @@
                     .from('tasks')
                     .select('*')
                     .eq('user_id', currentUser.id)
-                    .order('created_at', { ascending: true });
+                    .order('order_index', { ascending: true });
 
                 if (error) throw error;
 
                 if (!cloudTasks || cloudTasks.length === 0) {
                     // Cloud is empty, upload all local tasks
-                    for (const task of localTasks) {
+                    tasks.forEach((t, i) => t.order_index = i);
+                    for (const task of tasks) {
                         await uploadTask(task);
                     }
                     showToast('ЗАДАЧИ ЗАГРУЖЕНЫ В ОБЛАКО');
@@ -2450,7 +2470,8 @@
                         id: ct.id,
                         txt: ct.title,
                         done: ct.is_completed,
-                        color: ct.color || 'red'
+                        color: ct.color || 'red',
+                        order_index: ct.order_index || 0
                     }));
 
                     // Find unique local tasks not in cloud
@@ -2467,7 +2488,8 @@
                                     user_id: currentUser.id,
                                     title: localTask.txt,
                                     is_completed: localTask.done,
-                                    color: localTask.color || 'red'
+                                    color: localTask.color || 'red',
+                                    order_index: localTask.order_index || convertedCloudTasks.length
                                 })
                                 .select()
                                 .single();
@@ -2477,7 +2499,8 @@
                                     id: newTask.id,
                                     txt: newTask.title,
                                     done: newTask.is_completed,
-                                    color: newTask.color || 'red'
+                                    color: newTask.color || 'red',
+                                    order_index: newTask.order_index || 0
                                 });
                             }
                         }
@@ -2485,6 +2508,10 @@
 
                     // Update local state with merged cloud tasks
                     tasks = convertedCloudTasks;
+
+                    // Final sort just in case
+                    tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+
                     save();
                     render();
                     showToast('СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА');
@@ -2498,7 +2525,7 @@
         }
 
         async function uploadTask(task) {
-            if (!currentUser || !supabase) return;
+            if (!currentUser || !supabaseClient) return;
 
             try {
                 const { error } = await supabaseClient
@@ -2507,7 +2534,8 @@
                         user_id: currentUser.id,
                         title: task.txt,
                         is_completed: task.done,
-                        color: task.color || 'red'
+                        color: task.color || 'red',
+                        order_index: task.order_index || 0
                     });
 
                 if (error) throw error;
@@ -2516,8 +2544,35 @@
             }
         }
 
+        async function updateTaskOrderInCloud() {
+            if (!currentUser || !supabaseClient) return;
+            showSyncIndicator();
+
+            try {
+                // Perform a bulk upsert to update order_index for all tasks
+                const updates = tasks.map(t => ({
+                    id: t.id,
+                    user_id: currentUser.id,
+                    title: t.txt,
+                    is_completed: t.done,
+                    color: t.color || 'red',
+                    order_index: t.order_index
+                }));
+
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .upsert(updates);
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Update Order Error:', error);
+            } finally {
+                hideSyncIndicator();
+            }
+        }
+
         async function updateTaskInCloud(taskId, updates) {
-            if (!currentUser || !supabase) return;
+            if (!currentUser || !supabaseClient) return;
 
             try {
                 const { error } = await supabaseClient
@@ -2533,7 +2588,7 @@
         }
 
         async function deleteTaskFromCloud(taskId) {
-            if (!currentUser || !supabase) return;
+            if (!currentUser || !supabaseClient) return;
 
             try {
                 const { error } = await supabaseClient
@@ -2550,7 +2605,7 @@
 
         // ========== NOTES SYNCHRONIZATION ==========
         async function syncNotesOnLogin() {
-            if (!currentUser || !supabase) return;
+            if (!currentUser || !supabaseClient) return;
             showSyncIndicator();
 
             try {
@@ -2582,7 +2637,7 @@
         }
 
         async function uploadNotesToCloud(content) {
-            if (!currentUser || !supabase) return;
+            if (!currentUser || !supabaseClient) return;
             showSyncIndicator();
 
             try {
@@ -2605,7 +2660,7 @@
 
         // ========== REALTIME SUBSCRIPTIONS ==========
         function subscribeToTasks() {
-            if (!currentUser || realtimeChannel || !supabase) return;
+            if (!currentUser || realtimeChannel || !supabaseClient) return;
 
             realtimeChannel = supabaseClient
                 .channel('tasks-changes')
@@ -2628,34 +2683,34 @@
             const { eventType, new: newRecord, old: oldRecord } = payload;
 
             if (eventType === 'INSERT') {
-                // Add new task to list
                 const newTask = {
                     id: newRecord.id,
                     txt: newRecord.title,
                     done: newRecord.is_completed,
-                    color: newRecord.color || 'red'
+                    color: newRecord.color || 'red',
+                    order_index: newRecord.order_index || 0
                 };
 
-                // Check if already exists (avoid duplicates from own actions)
-                const exists = tasks.find(t => t.id === newTask.id);
-                if (!exists) {
+                if (!tasks.find(t => t.id === newTask.id)) {
                     tasks.push(newTask);
+                    tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
                     save();
                     render();
                     showToast('НОВАЯ ЗАДАЧА ИЗ ОБЛАКА');
                 }
             } else if (eventType === 'UPDATE') {
-                // Update existing task
                 const task = tasks.find(t => t.id === newRecord.id);
                 if (task) {
                     task.txt = newRecord.title;
                     task.done = newRecord.is_completed;
                     task.color = newRecord.color || 'red';
+                    task.order_index = newRecord.order_index || 0;
+
+                    tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
                     save();
                     render();
                 }
             } else if (eventType === 'DELETE') {
-                // Remove deleted task
                 const index = tasks.findIndex(t => t.id === oldRecord.id);
                 if (index !== -1) {
                     tasks.splice(index, 1);
