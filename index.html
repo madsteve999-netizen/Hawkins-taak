@@ -2923,7 +2923,6 @@
                 // Update local notes from cloud
                 if (newRecord && newRecord.content !== undefined) {
                     console.log('Updating notes from cloud, content length:', newRecord.content.length);
-                    const NOTES_KEY = 'stas_notes';
                     const currentContent = localStorage.getItem(NOTES_KEY) || '';
 
                     console.log('Current content length:', currentContent.length);
