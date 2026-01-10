@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Очень Странные Дела - Версия Стаса (Вечная)</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --red: #ff0000;
@@ -960,6 +961,130 @@
         .toast.show {
             opacity: 1;
         }
+
+        /* --- SUPABASE AUTH SECTION (RADIO FREQUENCY STYLE) --- */
+        .auth-section {
+            border: 2px solid var(--dark-red);
+            padding: 15px;
+            margin-bottom: 25px;
+            background: rgba(0, 0, 0, 0.8);
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+        }
+
+        .auth-title {
+            color: var(--red);
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .auth-status {
+            text-align: center;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px dashed #444;
+            background: #000;
+        }
+
+        .status-offline {
+            color: #ff0000;
+            animation: blink-red 1s infinite;
+        }
+
+        .status-online {
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        @keyframes blink-red {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .auth-input {
+            width: 100%;
+            background: #000;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            font-family: inherit;
+            text-transform: uppercase;
+            outline: none;
+        }
+
+        .auth-input::placeholder {
+            color: #555;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--red);
+            color: var(--red);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            font-family: inherit;
+            letter-spacing: 1px;
+            transition: 0.2s;
+        }
+
+        .auth-btn:active {
+            background: var(--red);
+            color: #000;
+        }
+
+        .auth-info {
+            color: #888;
+            font-size: 0.75rem;
+            text-align: center;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+
+        .auth-user-email {
+            color: #00ff00;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+
+        .sync-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid var(--red);
+            color: var(--red);
+            padding: 8px 15px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .sync-indicator.visible {
+            opacity: 1;
+        }
     </style>
 </head>
 
@@ -1179,6 +1304,36 @@
     <div id="settings-modal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-title">НАСТРОЙКИ СИСТЕМЫ</div>
+
+            <!-- SUPABASE AUTH SECTION -->
+            <div class="auth-section" id="auth-section">
+                <div class="auth-title">⚡ ЧАСТОТА SYNC ⚡</div>
+                <div class="auth-status" id="auth-status">
+                    <span class="status-offline">🔴 ВНЕ ЭФИРА (OFF AIR)</span>
+                </div>
+
+                <!-- State: Not Logged In -->
+                <div id="auth-login-form" style="display:none;">
+                    <input type="email" class="auth-input" id="auth-email" placeholder="ВВЕДИТЕ ПОЗЫВНОЙ (EMAIL)">
+                    <button class="auth-btn" onclick="sendOTP()">УСТАНОВИТЬ СВЯЗЬ</button>
+                </div>
+
+                <!-- State: Waiting for Code -->
+                <div id="auth-code-form" style="display:none;">
+                    <div class="auth-info" id="auth-email-sent">Шифровка отправлена на <span id="sent-email"></span>
+                    </div>
+                    <input type="text" class="auth-input" id="auth-code" placeholder="КОД ДОСТУПА (6 ЦИФР)"
+                        maxlength="6">
+                    <button class="auth-btn" onclick="verifyOTP()">ПРИЕМ (VERIFY)</button>
+                </div>
+
+                <!-- State: Logged In -->
+                <div id="auth-logged-in" style="display:none;">
+                    <div class="auth-user-email" id="auth-user-email"></div>
+                    <button class="auth-btn" onclick="logout()">КОНЕЦ СВЯЗИ (LOGOUT)</button>
+                </div>
+            </div>
+
             <div style="color:#aaa; font-size:0.8rem; margin-bottom:10px;">РАЗМЕР ШРИФТА</div>
             <input type="range" class="range-slider" id="font-size-slider" min="12" max="32" step="1"
                 oninput="updateFontSize(this.value)">
@@ -1273,9 +1428,34 @@
         src="https://www.myinstants.com/media/sounds/stranger-things-vecna-grandfather-clock.mp3"></audio>
     <audio id="gong-sfx" src="https://www.myinstants.com/media/sounds/undertakers-bell-1.mp3" loop></audio>
 
+    <!-- Sync Indicator -->
+    <div class="sync-indicator" id="sync-indicator">ОТПРАВКА...</div>
+
     <script>
         const DB_KEY = 'STRANGER_THINGS_GOLD_DB';
         const LEGACY_KEYS = ['stas_tasks_final', 'stas_tasks_final_elite', 'stas_tasks_elite'];
+
+        // ========== SUPABASE SETUP ==========
+        let supabaseClient = null;
+        let currentUser = null;
+        let realtimeChannel = null;
+        let pendingEmail = '';
+
+        // Initialize Supabase after page loads
+        function initSupabase() {
+            try {
+                if (window.supabase) {
+                    const supabaseUrl = 'https://jiovbimhoitawrtkqxmp.supabase.co';
+                    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imppb3ZiaW1ob2l0YXdydGtxeG1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMDc4NzMsImV4cCI6MjA4MzU4Mzg3M30.5-sBNX4Z5HcmMClmaySgoDDT2IDw3swcyYLZo3GnMCM';
+                    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+                    console.log('Supabase initialized successfully');
+                } else {
+                    console.warn('Supabase library not loaded');
+                }
+            } catch (error) {
+                console.error('Supabase init error:', error);
+            }
+        }
 
         let currentEditId = null;
         let selectedColor = 'red';
@@ -1737,7 +1917,16 @@
                 if (t) {
                     t.txt = newTxt;
                     t.color = selectedColor;
-                    save(); render();
+                    save();
+                    render();
+
+                    // Sync to cloud if logged in
+                    if (currentUser) {
+                        updateTaskInCloud(currentEditId, {
+                            title: newTxt,
+                            color: selectedColor
+                        });
+                    }
                 }
             }
             closeEditModal();
@@ -1772,7 +1961,13 @@
         function executeDelete(id) {
             tasks = tasks.filter(x => x.id !== id);
             playSfx('del');
-            save(); render();
+            save();
+            render();
+
+            // Sync to cloud if logged in
+            if (currentUser) {
+                deleteTaskFromCloud(id);
+            }
         }
 
         function initSpores() {
@@ -1813,6 +2008,16 @@
             const au = document.getElementById('audio');
             au.src = songs[curCh];
             au.volume = 0.5;
+
+            // Initialize Supabase client first
+            initSupabase();
+
+            // Then initialize auth (after a small delay to ensure Supabase is ready)
+            setTimeout(() => {
+                if (supabaseClient) {
+                    initAuth();
+                }
+            }, 100);
 
             // Setup Media Session Actions (Required for iOS Control Center to stay active)
             if ('mediaSession' in navigator) {
@@ -1900,17 +2105,64 @@
             const inp = document.getElementById('task-input');
             const val = inp.value.trim();
             if (!val) return;
-            tasks.push({ id: Date.now(), txt: val, done: false, color: newSelectedColor });
+
+            const newTask = { id: Date.now(), txt: val, done: false, color: newSelectedColor };
+            tasks.push(newTask);
             inp.value = '';
             playSfx('click');
-            save(); render();
+            save();
+            render();
+
+            // Sync to cloud if logged in
+            if (currentUser) {
+                uploadTaskToCloud(newTask);
+            }
+        }
+
+        async function uploadTaskToCloud(task) {
+            if (!currentUser || !supabase) return;
+            showSyncIndicator();
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .insert({
+                        user_id: currentUser.id,
+                        title: task.txt,
+                        is_completed: task.done,
+                        color: task.color || 'red'
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                // Update local task with cloud ID
+                const localTask = tasks.find(t => t.id === task.id);
+                if (localTask && data) {
+                    localTask.id = data.id;
+                    save();
+                }
+            } catch (error) {
+                console.error('Upload Error:', error);
+            } finally {
+                hideSyncIndicator();
+            }
         }
 
         function toggle(id) {
             const t = tasks.find(x => x.id === id);
-            if (t) t.done = !t.done;
-            playSfx('click');
-            save(); render();
+            if (t) {
+                t.done = !t.done;
+                playSfx('click');
+                save();
+                render();
+
+                // Sync to cloud if logged in
+                if (currentUser) {
+                    updateTaskInCloud(id, { is_completed: t.done });
+                }
+            }
         }
 
         function save() {
@@ -2027,6 +2279,407 @@
 
         window.onload = initApp;
 
+        // ========== SUPABASE AUTH FUNCTIONS ==========
+        async function initAuth() {
+            if (!supabaseClient) return;
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    currentUser = session.user;
+                    await handleLogin();
+                }
+                updateAuthUI();
+            } catch (error) {
+                console.error('Init Auth Error:', error);
+                updateAuthUI();
+            }
+        }
+
+        async function sendOTP() {
+            if (!supabaseClient) {
+                showToast('СИСТЕМА НЕ ГОТОВА');
+                return;
+            }
+            const email = document.getElementById('auth-email').value.trim();
+            if (!email) {
+                showToast('ВВЕДИТЕ EMAIL');
+                return;
+            }
+
+            try {
+                const { error } = await supabaseClient.auth.signInWithOtp({
+                    email: email,
+                    options: {
+                        shouldCreateUser: true
+                    }
+                });
+
+                if (error) throw error;
+
+                pendingEmail = email;
+                document.getElementById('sent-email').innerText = email;
+                updateAuthUI('awaiting-code');
+                showToast('КОД ОТПРАВЛЕН НА EMAIL');
+            } catch (error) {
+                console.error('OTP Error:', error);
+                showToast('ОШИБКА ОТПРАВКИ: ' + error.message);
+            }
+        }
+
+        async function verifyOTP() {
+            if (!supabaseClient) {
+                showToast('СИСТЕМА НЕ ГОТОВА');
+                return;
+            }
+            const code = document.getElementById('auth-code').value.trim();
+            if (!code || code.length !== 6) {
+                showToast('ВВЕДИТЕ 6-ЗНАЧНЫЙ КОД');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient.auth.verifyOtp({
+                    email: pendingEmail,
+                    token: code,
+                    type: 'email'
+                });
+
+                if (error) throw error;
+
+                currentUser = data.user;
+                await handleLogin();
+                showToast('СВЯЗЬ УСТАНОВЛЕНА');
+            } catch (error) {
+                console.error('Verify Error:', error);
+                showToast('НЕВЕРНЫЙ КОД: ' + error.message);
+            }
+        }
+
+        async function logout() {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.auth.signOut();
+                currentUser = null;
+                pendingEmail = '';
+
+                // Unsubscribe from realtime
+                if (realtimeChannel) {
+                    await supabaseClient.removeChannel(realtimeChannel);
+                    realtimeChannel = null;
+                }
+
+                updateAuthUI();
+                showToast('СВЯЗЬ РАЗОРВАНА');
+            } catch (error) {
+                console.error('Logout Error:', error);
+                showToast('ОШИБКА ВЫХОДА');
+            }
+        }
+
+        function updateAuthUI(state) {
+            const statusEl = document.getElementById('auth-status');
+            const loginForm = document.getElementById('auth-login-form');
+            const codeForm = document.getElementById('auth-code-form');
+            const loggedIn = document.getElementById('auth-logged-in');
+            const userEmail = document.getElementById('auth-user-email');
+
+            // Hide all forms first
+            loginForm.style.display = 'none';
+            codeForm.style.display = 'none';
+            loggedIn.style.display = 'none';
+
+            if (currentUser) {
+                // Logged in state
+                statusEl.innerHTML = '<span class="status-online">🟢 В ЭФИРЕ (ON AIR)</span>';
+                userEmail.innerText = currentUser.email;
+                loggedIn.style.display = 'block';
+            } else if (state === 'awaiting-code') {
+                // Awaiting code state
+                statusEl.innerHTML = '<span class="status-offline">🔴 ОЖИДАНИЕ ШИФРОВКИ</span>';
+                codeForm.style.display = 'block';
+            } else {
+                // Logged out state - SHOW LOGIN FORM
+                statusEl.innerHTML = '<span class="status-offline">🔴 ВНЕ ЭФИРА (OFF AIR)</span>';
+                loginForm.style.display = 'block';
+            }
+        }
+
+        async function handleLogin() {
+            if (!currentUser) return;
+
+            // Trigger synchronization
+            await syncTasksOnLogin();
+            await syncNotesOnLogin();
+
+            // Subscribe to realtime updates
+            subscribeToTasks();
+
+            updateAuthUI();
+        }
+
+        // ========== TASK SYNCHRONIZATION ==========
+        async function syncTasksOnLogin() {
+            if (!currentUser || !supabase) return;
+            showSyncIndicator();
+
+            try {
+                // Get local tasks
+                const localTasks = tasks;
+
+                // Get cloud tasks
+                const { data: cloudTasks, error } = await supabaseClient
+                    .from('tasks')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                if (!cloudTasks || cloudTasks.length === 0) {
+                    // Cloud is empty, upload all local tasks
+                    for (const task of localTasks) {
+                        await uploadTask(task);
+                    }
+                    showToast('ЗАДАЧИ ЗАГРУЖЕНЫ В ОБЛАКО');
+                } else {
+                    // Merge: Cloud priority + unique local
+                    const mergedTasks = [...cloudTasks];
+
+                    // Convert cloud tasks to our format
+                    const convertedCloudTasks = cloudTasks.map(ct => ({
+                        id: ct.id,
+                        txt: ct.title,
+                        done: ct.is_completed,
+                        color: ct.color || 'red'
+                    }));
+
+                    // Find unique local tasks not in cloud
+                    for (const localTask of localTasks) {
+                        const existsInCloud = cloudTasks.find(ct =>
+                            ct.title === localTask.txt && ct.is_completed === localTask.done
+                        );
+
+                        if (!existsInCloud) {
+                            // Upload unique local task
+                            const { data: newTask, error: uploadError } = await supabaseClient
+                                .from('tasks')
+                                .insert({
+                                    user_id: currentUser.id,
+                                    title: localTask.txt,
+                                    is_completed: localTask.done,
+                                    color: localTask.color || 'red'
+                                })
+                                .select()
+                                .single();
+
+                            if (!uploadError && newTask) {
+                                convertedCloudTasks.push({
+                                    id: newTask.id,
+                                    txt: newTask.title,
+                                    done: newTask.is_completed,
+                                    color: newTask.color || 'red'
+                                });
+                            }
+                        }
+                    }
+
+                    // Update local state with merged cloud tasks
+                    tasks = convertedCloudTasks;
+                    save();
+                    render();
+                    showToast('СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА');
+                }
+            } catch (error) {
+                console.error('Sync Error:', error);
+                showToast('ОШИБКА СИНХРОНИЗАЦИИ');
+            } finally {
+                hideSyncIndicator();
+            }
+        }
+
+        async function uploadTask(task) {
+            if (!currentUser || !supabase) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .insert({
+                        user_id: currentUser.id,
+                        title: task.txt,
+                        is_completed: task.done,
+                        color: task.color || 'red'
+                    });
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Upload Task Error:', error);
+            }
+        }
+
+        async function updateTaskInCloud(taskId, updates) {
+            if (!currentUser || !supabase) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .update(updates)
+                    .eq('id', taskId)
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Update Task Error:', error);
+            }
+        }
+
+        async function deleteTaskFromCloud(taskId) {
+            if (!currentUser || !supabase) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .eq('id', taskId)
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Delete Task Error:', error);
+            }
+        }
+
+        // ========== NOTES SYNCHRONIZATION ==========
+        async function syncNotesOnLogin() {
+            if (!currentUser || !supabase) return;
+            showSyncIndicator();
+
+            try {
+                // Get cloud notes
+                const { data: cloudNote, error } = await supabaseClient
+                    .from('notes')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+                    throw error;
+                }
+
+                const localNotes = localStorage.getItem(NOTES_KEY) || '';
+
+                if (!cloudNote && localNotes) {
+                    // Cloud empty, upload local
+                    await uploadNotesToCloud(localNotes);
+                } else if (cloudNote) {
+                    // Cloud has data, use it as truth
+                    localStorage.setItem(NOTES_KEY, cloudNote.content);
+                }
+            } catch (error) {
+                console.error('Notes Sync Error:', error);
+            } finally {
+                hideSyncIndicator();
+            }
+        }
+
+        async function uploadNotesToCloud(content) {
+            if (!currentUser || !supabase) return;
+            showSyncIndicator();
+
+            try {
+                const { error } = await supabaseClient
+                    .from('notes')
+                    .upsert({
+                        user_id: currentUser.id,
+                        content: content,
+                        updated_at: new Date().toISOString()
+                    });
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Upload Notes Error:', error);
+                showToast('ОШИБКА СОХРАНЕНИЯ ЗАМЕТОК');
+            } finally {
+                hideSyncIndicator();
+            }
+        }
+
+        // ========== REALTIME SUBSCRIPTIONS ==========
+        function subscribeToTasks() {
+            if (!currentUser || realtimeChannel || !supabase) return;
+
+            realtimeChannel = supabaseClient
+                .channel('tasks-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'tasks',
+                        filter: `user_id=eq.${currentUser.id}`
+                    },
+                    (payload) => {
+                        handleRealtimeEvent(payload);
+                    }
+                )
+                .subscribe();
+        }
+
+        function handleRealtimeEvent(payload) {
+            const { eventType, new: newRecord, old: oldRecord } = payload;
+
+            if (eventType === 'INSERT') {
+                // Add new task to list
+                const newTask = {
+                    id: newRecord.id,
+                    txt: newRecord.title,
+                    done: newRecord.is_completed,
+                    color: newRecord.color || 'red'
+                };
+
+                // Check if already exists (avoid duplicates from own actions)
+                const exists = tasks.find(t => t.id === newTask.id);
+                if (!exists) {
+                    tasks.push(newTask);
+                    save();
+                    render();
+                    showToast('НОВАЯ ЗАДАЧА ИЗ ОБЛАКА');
+                }
+            } else if (eventType === 'UPDATE') {
+                // Update existing task
+                const task = tasks.find(t => t.id === newRecord.id);
+                if (task) {
+                    task.txt = newRecord.title;
+                    task.done = newRecord.is_completed;
+                    task.color = newRecord.color || 'red';
+                    save();
+                    render();
+                }
+            } else if (eventType === 'DELETE') {
+                // Remove deleted task
+                const index = tasks.findIndex(t => t.id === oldRecord.id);
+                if (index !== -1) {
+                    tasks.splice(index, 1);
+                    save();
+                    render();
+                    showToast('ЗАДАЧА УДАЛЕНА В ОБЛАКЕ');
+                }
+            }
+        }
+
+        function showSyncIndicator() {
+            const indicator = document.getElementById('sync-indicator');
+            if (indicator) {
+                indicator.classList.add('visible');
+            }
+        }
+
+        function hideSyncIndicator() {
+            const indicator = document.getElementById('sync-indicator');
+            if (indicator) {
+                indicator.classList.remove('visible');
+            }
+        }
+
         // --- ЗАМЕТКИ (NOTES) ФУНКЦИОНАЛ ---
         const NOTES_KEY = 'STRANGER_THINGS_NOTES';
         let originalNotesContent = '';
@@ -2046,6 +2699,11 @@
             const editor = document.getElementById('notes-editor');
             const content = editor.innerHTML;
             localStorage.setItem(NOTES_KEY, content);
+
+            // Sync to cloud if logged in
+            if (currentUser) {
+                uploadNotesToCloud(content);
+            }
 
             const modal = document.getElementById('notes-modal');
             modal.classList.remove('open');
