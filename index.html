@@ -1150,7 +1150,69 @@
         .sync-indicator.visible {
             opacity: 1;
         }
+
+        /* ========== THE VOID MODE (РЕЖИМ ФОКУСИРОВКИ) ========== */
+        /* Затемняем существующий overlay вместо создания нового */
+        body.void-mode .overlay {
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%);
+            transition: background 0.8s ease;
+        }
+
+        /* Скрываем отвлекающие элементы */
+        body.void-mode .header,
+        body.void-mode #radio-control-box,
+        body.void-mode .channel-row,
+        body.void-mode .play-btn,
+        body.void-mode .input-wrapper,
+        body.void-mode .list-title,
+        body.void-mode #completed-section {
+            display: none !important;
+        }
+
+        /* Скрываем все активные задачи кроме первой */
+        body.void-mode #active-list li:not(:first-child) {
+            display: none;
+        }
+
+        /* Увеличиваем и подсвечиваем первую задачу */
+        body.void-mode #active-list li:first-child {
+            font-size: 1.3rem;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+            border-left-width: 6px;
+            transition: all 0.5s ease;
+            margin-bottom: 30px;
+        }
+
+        body.void-mode #active-list li:first-child .task-text {
+            font-size: 1.3em;
+            text-shadow: 3px 3px 0 #000, 0 0 15px rgba(255, 0, 0, 0.3);
+        }
+
+        /* Центрируем workspace в режиме void */
+        body.void-mode #workspace {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100vh;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        /* Таймер и кнопки - усиливаем визуально */
+        body.void-mode .control-box:nth-of-type(2) {
+            background: rgba(20, 0, 0, 0.95);
+            box-shadow: 0 0 40px rgba(255, 0, 0, 0.3);
+            transition: all 0.5s ease;
+        }
+
+        /* Увеличиваем таймер в режиме void */
+        body.void-mode .timer-digits {
+            font-size: 4.5rem;
+            text-shadow: 0 0 25px var(--red), 0 0 50px var(--red);
+            transition: all 0.5s ease;
+        }
     </style>
+
 </head>
 
 <body>
@@ -1170,7 +1232,7 @@
             </div>
 
             <!-- БЛОК РАДИО -->
-            <div class="control-box">
+            <div class="control-box" id="radio-control-box">
                 <div class="channel-row">
                     <div class="ch-btn active" onclick="setCh(0)">1</div>
                     <div class="ch-btn" onclick="setCh(1)">2</div>
@@ -1788,6 +1850,9 @@
             if (timerInterval) return;
             timerEndTime = Date.now() + timeLeft * 1000;
 
+            // ACTIVATE THE VOID MODE
+            document.body.classList.add('void-mode');
+
             timerInterval = setInterval(() => {
                 const now = Date.now();
                 const diff = Math.ceil((timerEndTime - now) / 1000);
@@ -1828,6 +1893,9 @@
             btn.innerText = "СТАРТ";
             btn.classList.remove('active');
 
+            // DEACTIVATE THE VOID MODE
+            document.body.classList.remove('void-mode');
+
             const vecna = document.getElementById('vecna-sfx');
             vecna.pause(); vecna.currentTime = 0;
         }
@@ -1838,6 +1906,9 @@
             isWorkSession = true;
             currentCycle = 1;
             resetTime();
+
+            // DEACTIVATE THE VOID MODE (already called in stopTicking, but ensure it's off)
+            document.body.classList.remove('void-mode');
         }
 
         function handleTimerComplete() {
