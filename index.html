@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#000000">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Очень Странные Дела - Версия Стаса (Вечная)</title>
+    <title>Stranger Things Task Manager</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -20,11 +20,19 @@
             --task-font-size: 1.1rem;
             --task-font-family: 'Courier New', Courier, monospace;
 
+            /* Original colors */
             --color-red: #ff0000;
             --color-yellow: #ffeb3b;
             --color-blue: #00e5ff;
             --color-green: #00ff00;
             --color-grey: #666666;
+
+            /* NEW: 5 additional colors */
+            --color-orange: #ff9100;
+            --color-purple: #d500f9;
+            --color-cyan: #00e5ff;
+            --color-lime: #76ff03;
+            --color-white: #ffffff;
         }
 
         * {
@@ -601,6 +609,27 @@
 
         .task-item.border-grey {
             border-left-color: var(--color-grey);
+        }
+
+        /* NEW: Border classes for 5 new colors */
+        .task-item.border-orange {
+            border-left-color: var(--color-orange);
+        }
+
+        .task-item.border-purple {
+            border-left-color: var(--color-purple);
+        }
+
+        .task-item.border-cyan {
+            border-left-color: var(--color-cyan);
+        }
+
+        .task-item.border-lime {
+            border-left-color: var(--color-lime);
+        }
+
+        .task-item.border-white {
+            border-left-color: var(--color-white);
         }
 
         .task-text {
@@ -1262,6 +1291,17 @@
                         id="new-col-blue"></div>
                     <div class="new-color-opt" style="background:var(--color-green)" onclick="selectNewColor('green')"
                         id="new-col-green"></div>
+                    <!-- NEW: 5 additional colors -->
+                    <div class="new-color-opt" style="background:var(--color-orange)" onclick="selectNewColor('orange')"
+                        id="new-col-orange"></div>
+                    <div class="new-color-opt" style="background:var(--color-purple)" onclick="selectNewColor('purple')"
+                        id="new-col-purple"></div>
+                    <div class="new-color-opt" style="background:var(--color-cyan)" onclick="selectNewColor('cyan')"
+                        id="new-col-cyan"></div>
+                    <div class="new-color-opt" style="background:var(--color-lime)" onclick="selectNewColor('lime')"
+                        id="new-col-lime"></div>
+                    <div class="new-color-opt" style="background:var(--color-white)" onclick="selectNewColor('white')"
+                        id="new-col-white"></div>
                 </div>
             </div>
 
@@ -1412,6 +1452,20 @@
                 </div>
                 <div class="color-opt" style="background:var(--color-green)" onclick="selectColor('green')"
                     id="col-green"></div>
+                <!-- NEW: 5 additional colors -->
+                <div class="color-opt" style="background:var(--color-orange)" onclick="selectColor('orange')"
+                    id="col-orange">
+                </div>
+                <div class="color-opt" style="background:var(--color-purple)" onclick="selectColor('purple')"
+                    id="col-purple">
+                </div>
+                <div class="color-opt" style="background:var(--color-cyan)" onclick="selectColor('cyan')" id="col-cyan">
+                </div>
+                <div class="color-opt" style="background:var(--color-lime)" onclick="selectColor('lime')" id="col-lime">
+                </div>
+                <div class="color-opt" style="background:var(--color-white)" onclick="selectColor('white')"
+                    id="col-white">
+                </div>
             </div>
             <div class="modal-actions">
                 <button class="modal-btn" onclick="closeEditModal()">ОТМЕНА</button>
@@ -2188,11 +2242,28 @@
 
                 if (error) throw error;
 
-                // Update local task with cloud ID and order_index
-                const localTask = tasks.find(t => t.id === task.id);
+                // CRITICAL BUGFIX: Update local task ID AND DOM data-id attribute
+                // This fixes the "ghosting" bug when dragging newly created tasks
+                const oldId = task.id;
+                const localTask = tasks.find(t => t.id === oldId);
                 if (localTask && data) {
                     localTask.id = data.id;
                     localTask.order_index = data.order_index;
+
+                    // Update DOM element data-id WITHOUT full re-render
+                    // This allows SortableJS to continue tracking the correct ID
+                    const domElement = document.querySelector(`li[data-id="${oldId}"]`);
+                    if (domElement) {
+                        domElement.dataset.id = data.id;
+
+                        // Update all onclick handlers to use new ID
+                        const newIdStr = String(data.id);
+                        domElement.querySelector('.checkbox').setAttribute('onclick', `toggle('${newIdStr}')`);
+                        domElement.querySelector('.task-text').setAttribute('onclick', `toggle('${newIdStr}')`);
+                        domElement.querySelector('.btn-edit').setAttribute('onclick', `openEditModal('${newIdStr}')`);
+                        domElement.querySelector('.btn-del').setAttribute('onclick', `del('${newIdStr}')`);
+                    }
+
                     save();
                 }
             } catch (error) {
@@ -2224,7 +2295,10 @@
         function render() {
             const act = document.getElementById('active-list');
             const com = document.getElementById('completed-list');
-            act.innerHTML = ''; com.innerHTML = '';
+
+            // PERFORMANCE: Use DocumentFragment instead of innerHTML in loop
+            const actFragment = document.createDocumentFragment();
+            const comFragment = document.createDocumentFragment();
 
             tasks.forEach(t => {
                 const li = document.createElement('li');
@@ -2239,8 +2313,19 @@
                     <button class="btn-action btn-edit" onclick="openEditModal('${taskIdStr}')">✎</button>
                     <button class="btn-action btn-del" onclick="del('${taskIdStr}')">×</button>
                 `;
-                if (t.done) com.appendChild(li); else act.appendChild(li);
+
+                if (t.done) {
+                    comFragment.appendChild(li);
+                } else {
+                    actFragment.appendChild(li);
+                }
             });
+
+            // Single DOM write per list (MUCH faster)
+            act.innerHTML = '';
+            com.innerHTML = '';
+            act.appendChild(actFragment);
+            com.appendChild(comFragment);
         }
 
         function setCh(idx) {
@@ -2299,6 +2384,9 @@
             }
         }
 
+        // Debounce timer for drag-and-drop cloud sync
+        let dragDebounceTimer = null;
+
         function initDrag() {
             if (typeof Sortable !== 'undefined') {
                 const opts = {
@@ -2328,11 +2416,15 @@
                             task.order_index = index;
                         });
 
+                        // INSTANT local save
                         save();
 
-                        // Sync order to cloud if logged in
+                        // DEBOUNCED cloud sync (PERFORMANCE: Prevents request waterfall)
                         if (currentUser) {
-                            updateTaskOrderInCloud();
+                            clearTimeout(dragDebounceTimer);
+                            dragDebounceTimer = setTimeout(() => {
+                                updateTaskOrderInCloud();
+                            }, 2000); // Wait 2s after user stops dragging
                         }
                     }
                 };
@@ -2515,12 +2607,25 @@
                 if (error) throw error;
 
                 if (!cloudTasks || cloudTasks.length === 0) {
-                    // Cloud is empty, upload all local tasks
-                    tasks.forEach((t, i) => t.order_index = i);
-                    for (const task of tasks) {
-                        await uploadTask(task);
+                    // Cloud is empty - BULK INSERT all local tasks (PERFORMANCE)
+                    if (tasks.length > 0) {
+                        tasks.forEach((t, i) => t.order_index = i);
+
+                        const tasksToUpload = tasks.map(task => ({
+                            user_id: currentUser.id,
+                            title: task.txt,
+                            is_completed: task.done,
+                            color: task.color || 'red',
+                            order_index: task.order_index || 0
+                        }));
+
+                        const { error: bulkError } = await supabaseClient
+                            .from('tasks')
+                            .insert(tasksToUpload);
+
+                        if (bulkError) throw bulkError;
+                        showToast('ЗАДАЧИ ЗАГРУЖЕНЫ В ОБЛАКО');
                     }
-                    showToast('ЗАДАЧИ ЗАГРУЖЕНЫ В ОБЛАКО');
                 } else {
                     // Merge: Cloud priority + unique local
                     // Filter out cloud tasks that are soft-deleted
@@ -2764,7 +2869,7 @@
                         event: '*',
                         schema: 'public',
                         table: 'tasks',
-                        filter: `user_id=eq.${currentUser.id}`
+                        filter: `user_id = eq.${currentUser.id}`
                     },
                     (payload) => {
                         handleRealtimeEvent(payload);
