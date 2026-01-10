@@ -1913,7 +1913,7 @@
             if (!currentEditId) return;
             const newTxt = document.getElementById('edit-task-input').value.trim();
             if (newTxt) {
-                const t = tasks.find(x => x.id === currentEditId);
+                const t = tasks.find(x => String(x.id) === String(currentEditId));
                 if (t) {
                     t.txt = newTxt;
                     t.color = selectedColor;
@@ -2594,15 +2594,24 @@
             if (!currentUser || !supabaseClient) return;
 
             try {
-                const { error } = await supabaseClient
+                const { error, count } = await supabaseClient
                     .from('tasks')
-                    .delete()
+                    .delete({ count: 'exact' })
                     .eq('id', taskId)
                     .eq('user_id', currentUser.id);
 
                 if (error) throw error;
+
+                console.log('Delete result count:', count);
+                if (count === 0) {
+                    console.warn('No rows deleted in cloud for ID:', taskId);
+                    showToast('ОШИБКА: ЗАДАЧА НЕ УДАЛЕНА В ОБЛАКЕ');
+                } else {
+                    console.log('Successfully deleted task from cloud:', taskId);
+                }
             } catch (error) {
                 console.error('Delete Task Error:', error);
+                showToast('ОШИБКА УДАЛЕНИЯ: ' + error.message);
             }
         }
 
@@ -2714,7 +2723,8 @@
                     render();
                 }
             } else if (eventType === 'DELETE') {
-                const index = tasks.findIndex(t => t.id === oldRecord.id);
+                // Remove deleted task by ID (safe comparison)
+                const index = tasks.findIndex(t => String(t.id) === String(oldRecord.id));
                 if (index !== -1) {
                     tasks.splice(index, 1);
                     save();
