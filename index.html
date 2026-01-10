@@ -2859,8 +2859,12 @@
 
         // ========== REALTIME SUBSCRIPTIONS ==========
         function subscribeToTasks() {
-            if (!currentUser || realtimeChannel || !supabaseClient) return;
+            if (!currentUser || realtimeChannel || !supabaseClient) {
+                console.log('subscribeToTasks skipped:', { currentUser: !!currentUser, realtimeChannel: !!realtimeChannel, supabaseClient: !!supabaseClient });
+                return;
+            }
 
+            console.log('Creating Realtime subscription for user:', currentUser.id);
             realtimeChannel = supabaseClient
                 .channel('tasks-changes')
                 .on(
@@ -2869,17 +2873,22 @@
                         event: '*',
                         schema: 'public',
                         table: 'tasks',
-                        filter: `user_id = eq.${currentUser.id}`
+                        filter: `user_id=eq.${currentUser.id}`
                     },
                     (payload) => {
+                        console.log('Realtime event received:', payload);
                         handleRealtimeEvent(payload);
                     }
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    console.log('Realtime subscription status:', status);
+                });
         }
 
         function handleRealtimeEvent(payload) {
+            console.log('handleRealtimeEvent called with:', payload);
             const { eventType, new: newRecord, old: oldRecord } = payload;
+            console.log('Event type:', eventType, 'New:', newRecord, 'Old:', oldRecord);
 
             if (eventType === 'INSERT') {
                 // Only insert if not marked as deleted
@@ -2894,27 +2903,37 @@
 
                     // FIXED: Use String() comparison for consistency with UPDATE/DELETE
                     if (!tasks.find(t => String(t.id) === String(newTask.id))) {
+                        console.log('Adding new task from cloud:', newTask);
                         tasks.push(newTask);
                         tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
                         save();
                         render();
                         showToast('НОВАЯ ЗАДАЧА ИЗ ОБЛАКА');
+                    } else {
+                        console.log('Task already exists, skipping:', newTask.id);
                     }
+                } else {
+                    console.log('Skipping deleted task:', newRecord.id);
                 }
             } else if (eventType === 'UPDATE') {
+                console.log('Processing UPDATE event');
                 if (newRecord.is_deleted) {
                     // Treat soft delete as DELETE
                     const index = tasks.findIndex(t => String(t.id) === String(newRecord.id));
                     if (index !== -1) {
+                        console.log('Removing soft-deleted task:', newRecord.id);
                         tasks.splice(index, 1);
                         save();
                         render();
                         showToast('ЗАДАЧА УДАЛЕНА В ОБЛАКЕ');
+                    } else {
+                        console.log('Soft-deleted task not found locally:', newRecord.id);
                     }
                 } else {
                     // Normal UPDATE (if not deleted)
                     const task = tasks.find(t => String(t.id) === String(newRecord.id));
                     if (task) {
+                        console.log('Updating task:', newRecord.id);
                         task.txt = newRecord.title;
                         task.done = newRecord.is_completed;
                         task.color = newRecord.color || 'red';
@@ -2923,16 +2942,22 @@
                         tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
                         save();
                         render();
+                    } else {
+                        console.log('Task not found for update:', newRecord.id);
                     }
                 }
             } else if (eventType === 'DELETE') {
+                console.log('Processing DELETE event');
                 // Keep handling hard deletes just in case
                 const index = tasks.findIndex(t => String(t.id) === String(oldRecord.id));
                 if (index !== -1) {
+                    console.log('Removing hard-deleted task:', oldRecord.id);
                     tasks.splice(index, 1);
                     save();
                     render();
                     showToast('ЗАДАЧА УДАЛЕНА В ОБЛАКЕ');
+                } else {
+                    console.log('Hard-deleted task not found locally:', oldRecord.id);
                 }
             }
         }
