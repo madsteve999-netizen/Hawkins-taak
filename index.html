@@ -2466,10 +2466,11 @@
                     showToast('ЗАДАЧИ ЗАГРУЖЕНЫ В ОБЛАКО');
                 } else {
                     // Merge: Cloud priority + unique local
-                    const mergedTasks = [...cloudTasks];
+                    // Filter out cloud tasks that are soft-deleted
+                    const activeCloudTasks = cloudTasks.filter(ct => !ct.is_deleted);
 
                     // Convert cloud tasks to our format
-                    const convertedCloudTasks = cloudTasks.map(ct => ({
+                    const convertedCloudTasks = activeCloudTasks.map(ct => ({
                         id: ct.id,
                         txt: ct.title,
                         done: ct.is_completed,
@@ -2477,14 +2478,15 @@
                         order_index: ct.order_index || 0
                     }));
 
-                    // Find unique local tasks not in cloud
+                    // Find unique local tasks not in cloud and UPLOAD them
+                    // Also check if local task exists in cloud but is marked deleted (ZOMBIE CHECK)
                     for (const localTask of localTasks) {
-                        const existsInCloud = cloudTasks.find(ct =>
+                        const cloudMatch = cloudTasks.find(ct =>
                             ct.title === localTask.txt && ct.is_completed === localTask.done
                         );
 
-                        if (!existsInCloud) {
-                            // Upload unique local task
+                        if (!cloudMatch) {
+                            // Unique local task - Safe to upload
                             const { data: newTask, error: uploadError } = await supabaseClient
                                 .from('tasks')
                                 .insert({
@@ -2492,7 +2494,8 @@
                                     title: localTask.txt,
                                     is_completed: localTask.done,
                                     color: localTask.color || 'red',
-                                    order_index: localTask.order_index || convertedCloudTasks.length
+                                    order_index: localTask.order_index || convertedCloudTasks.length,
+                                    is_deleted: false
                                 })
                                 .select()
                                 .single();
@@ -2507,9 +2510,11 @@
                                 });
                             }
                         }
+                        // If cloudMatch exists and is_deleted is true, we simply ignore the local task 
+                        // (effectively deleting it from local state by not adding it to convertedCloudTasks)
                     }
 
-                    // Update local state with merged cloud tasks
+                    // Update local state with merged (and filtered) cloud tasks
                     tasks = convertedCloudTasks;
 
                     // Final sort just in case
@@ -2594,21 +2599,16 @@
             if (!currentUser || !supabaseClient) return;
 
             try {
+                // Soft Delete: Update is_deleted = true
                 const { error, count } = await supabaseClient
                     .from('tasks')
-                    .delete({ count: 'exact' })
+                    .update({ is_deleted: true })
                     .eq('id', taskId)
-                    .eq('user_id', currentUser.id);
+                    .eq('user_id', currentUser.id)
+                    .select('count'); // Just to check connection
 
                 if (error) throw error;
-
-                console.log('Delete result count:', count);
-                if (count === 0) {
-                    console.warn('No rows deleted in cloud for ID:', taskId);
-                    showToast('ОШИБКА: ЗАДАЧА НЕ УДАЛЕНА В ОБЛАКЕ');
-                } else {
-                    console.log('Successfully deleted task from cloud:', taskId);
-                }
+                console.log('Soft deleted task in cloud:', taskId);
             } catch (error) {
                 console.error('Delete Task Error:', error);
                 showToast('ОШИБКА УДАЛЕНИЯ: ' + error.message);
@@ -2695,35 +2695,50 @@
             const { eventType, new: newRecord, old: oldRecord } = payload;
 
             if (eventType === 'INSERT') {
-                const newTask = {
-                    id: newRecord.id,
-                    txt: newRecord.title,
-                    done: newRecord.is_completed,
-                    color: newRecord.color || 'red',
-                    order_index: newRecord.order_index || 0
-                };
+                // Only insert if not marked as deleted
+                if (!newRecord.is_deleted) {
+                    const newTask = {
+                        id: newRecord.id,
+                        txt: newRecord.title,
+                        done: newRecord.is_completed,
+                        color: newRecord.color || 'red',
+                        order_index: newRecord.order_index || 0
+                    };
 
-                if (!tasks.find(t => t.id === newTask.id)) {
-                    tasks.push(newTask);
-                    tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-                    save();
-                    render();
-                    showToast('НОВАЯ ЗАДАЧА ИЗ ОБЛАКА');
+                    if (!tasks.find(t => t.id === newTask.id)) {
+                        tasks.push(newTask);
+                        tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+                        save();
+                        render();
+                        showToast('НОВАЯ ЗАДАЧА ИЗ ОБЛАКА');
+                    }
                 }
             } else if (eventType === 'UPDATE') {
-                const task = tasks.find(t => t.id === newRecord.id);
-                if (task) {
-                    task.txt = newRecord.title;
-                    task.done = newRecord.is_completed;
-                    task.color = newRecord.color || 'red';
-                    task.order_index = newRecord.order_index || 0;
+                if (newRecord.is_deleted) {
+                    // Treat soft delete as DELETE
+                    const index = tasks.findIndex(t => String(t.id) === String(newRecord.id));
+                    if (index !== -1) {
+                        tasks.splice(index, 1);
+                        save();
+                        render();
+                        showToast('ЗАДАЧА УДАЛЕНА В ОБЛАКЕ');
+                    }
+                } else {
+                    // Normal UPDATE (if not deleted)
+                    const task = tasks.find(t => String(t.id) === String(newRecord.id));
+                    if (task) {
+                        task.txt = newRecord.title;
+                        task.done = newRecord.is_completed;
+                        task.color = newRecord.color || 'red';
+                        task.order_index = newRecord.order_index || 0;
 
-                    tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-                    save();
-                    render();
+                        tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+                        save();
+                        render();
+                    }
                 }
             } else if (eventType === 'DELETE') {
-                // Remove deleted task by ID (safe comparison)
+                // Keep handling hard deletes just in case
                 const index = tasks.findIndex(t => String(t.id) === String(oldRecord.id));
                 if (index !== -1) {
                     tasks.splice(index, 1);
