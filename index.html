@@ -400,6 +400,65 @@
             border-color: var(--red);
         }
 
+        /* MODE SWITCHER STYLES */
+        .mode-switch {
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+            color: #fff;
+            user-select: none;
+        }
+
+        .mode-switch span {
+            cursor: pointer;
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .mode-switch span.active {
+            opacity: 1;
+            text-shadow: 0 0 10px var(--red), 0 0 20px var(--red);
+        }
+
+        .mode-switch span:hover {
+            opacity: 0.7;
+        }
+
+        /* CHRONO MODE - CYAN THEME */
+        body.chrono-mode .mode-switch span.active {
+            text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff;
+        }
+
+        body.chrono-mode .timer-digits {
+            text-shadow: 0 0 15px #00e5ff;
+        }
+
+        body.chrono-mode .t-btn-text:hover {
+            border-color: #00e5ff;
+            color: #00e5ff;
+        }
+
+        body.chrono-mode .t-btn-text.active {
+            background: #00e5ff;
+            color: #000;
+            border-color: #00e5ff;
+        }
+
+        body.chrono-mode .t-btn-icon:hover {
+            color: #00e5ff;
+        }
+
+        body.chrono-mode .t-btn-icon.active {
+            color: #00e5ff;
+            text-shadow: 0 0 10px #00e5ff;
+        }
+
+        body.chrono-mode .control-box {
+            border-color: #00e5ff;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+        }
+
         .timer-icons-row {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
@@ -1333,6 +1392,12 @@
 
             <!-- БЛОК ПОМОДОРО -->
             <div class="control-box">
+                <!-- MODE SWITCHER -->
+                <div class="mode-switch">
+                    <span id="mode-timer" class="active" onclick="switchMode('timer')">TIMER</span> | <span
+                        id="mode-chrono" onclick="switchMode('stopwatch')">CHRONO</span>
+                </div>
+
                 <!-- 1. ЦИФРЫ ТАЙМЕРА (ЭТАЖ 1) -->
                 <div class="timer-display-row">
                     <div class="timer-digits" id="timer">25:00</div>
@@ -1946,6 +2011,12 @@
         let timerHistory = null;
         let timerEndTime = 0;
 
+        // STOPWATCH MODE VARIABLES
+        let mode = 'timer'; // 'timer' or 'stopwatch'
+        let stopwatchTime = 0; // seconds
+        let stopwatchInterval = null;
+        let stopwatchStartTime = null; // for Date.now() accuracy
+
         function saveTimerState() {
             timerHistory = {
                 timeLeft: timeLeft,
@@ -2059,11 +2130,24 @@
         }
 
         function fullReset() {
+            // MODE CHECK: Handle stopwatch mode separately
+            if (mode === 'stopwatch') {
+                stopStopwatch();
+                stopwatchTime = 0;
+                updateStopwatchDisplay();
+
+                const btn = document.getElementById('t-start-btn');
+                btn.innerText = "СТАРТ";
+                btn.classList.remove('active');
+                return;
+            }
+
+            // TIMER MODE (existing logic)
             saveTimerState();
             stopTicking();
             isWorkSession = true;
             currentCycle = 1;
-            resetTime();
+            resetTime(); // Uses user settings, not hardcoded 25:00
 
             // DEACTIVATE THE VOID MODE (already called in stopTicking, but ensure it's off)
             document.body.classList.remove('void-mode');
@@ -2126,6 +2210,24 @@
 
         function toggleTimer() {
             const btn = document.getElementById('t-start-btn');
+
+            // MODE CHECK: Handle stopwatch mode separately
+            if (mode === 'stopwatch') {
+                if (stopwatchInterval) {
+                    // Stopwatch is running - PAUSE it
+                    stopStopwatch();
+                    btn.innerText = "СТАРТ";
+                    btn.classList.remove('active');
+                } else {
+                    // Stopwatch is paused - START it
+                    startStopwatch();
+                    btn.innerText = "ПАУЗА";
+                    btn.classList.add('active');
+                }
+                return;
+            }
+
+            // TIMER MODE (existing logic)
             if (timerInterval) {
                 stopTicking();
             } else {
@@ -2185,6 +2287,64 @@
             } else {
                 updateCycleStatus();
             }
+        }
+
+        // ========== STOPWATCH MODE FUNCTIONS ==========
+        function switchMode(newMode) {
+            if (mode === newMode) return;
+
+            // Stop current activity
+            if (mode === 'timer') {
+                stopTicking();
+            } else {
+                stopStopwatch();
+            }
+
+            mode = newMode;
+
+            // Update UI
+            const timerSpan = document.getElementById('mode-timer');
+            const chronoSpan = document.getElementById('mode-chrono');
+
+            if (mode === 'timer') {
+                // Switch to TIMER mode
+                timerSpan.classList.add('active');
+                chronoSpan.classList.remove('active');
+                document.body.classList.remove('chrono-mode');
+                updateDisplay();
+            } else {
+                // Switch to STOPWATCH mode
+                chronoSpan.classList.add('active');
+                timerSpan.classList.remove('active');
+                document.body.classList.add('chrono-mode');
+                updateStopwatchDisplay();
+            }
+        }
+
+        function startStopwatch() {
+            if (stopwatchInterval) return; // Already running
+
+            stopwatchStartTime = Date.now() - (stopwatchTime * 1000);
+
+            stopwatchInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - stopwatchStartTime) / 1000);
+                stopwatchTime = elapsed;
+                updateStopwatchDisplay();
+            }, 100); // Update every 100ms for smooth display
+        }
+
+        function stopStopwatch() {
+            if (stopwatchInterval) {
+                clearInterval(stopwatchInterval);
+                stopwatchInterval = null;
+            }
+        }
+
+        function updateStopwatchDisplay() {
+            const mins = Math.floor(stopwatchTime / 60);
+            const secs = stopwatchTime % 60;
+            const display = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            document.getElementById('timer').innerText = display;
         }
 
         function selectNewColor(color) {
