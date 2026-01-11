@@ -1834,8 +1834,63 @@
             }
         }
         document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') {
-                try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { }
+            if (document.visibilityState === 'visible') {
+                // Re-acquire WakeLock if it was active
+                if (wakeLock !== null) {
+                    try {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                    } catch (e) { }
+                }
+
+                // Force sync when tab becomes visible (prevent stale data)
+                if (currentUser) {
+                    console.log('Tab visible - forcing sync...');
+
+                    // Sync tasks and notes from cloud
+                    await syncTasksOnLogin();
+                    await syncNotesOnLogin();
+
+                    // Check Realtime connection status and reconnect if needed
+                    if (realtimeChannel) {
+                        const channelState = realtimeChannel.state;
+                        console.log('Realtime channel state:', channelState);
+
+                        if (channelState !== 'joined') {
+                            console.log('Realtime not subscribed, reconnecting...');
+                            subscribeToTasks();
+                        }
+                    } else {
+                        // No channel exists, subscribe
+                        console.log('No Realtime channel, subscribing...');
+                        subscribeToTasks();
+                    }
+                }
+            }
+        });
+
+        // Backup: also listen to window focus event
+        window.addEventListener('focus', async () => {
+            if (currentUser) {
+                console.log('Window focused - forcing sync...');
+
+                // Sync tasks and notes from cloud
+                await syncTasksOnLogin();
+                await syncNotesOnLogin();
+
+                // Check Realtime connection status and reconnect if needed
+                if (realtimeChannel) {
+                    const channelState = realtimeChannel.state;
+                    console.log('Realtime channel state:', channelState);
+
+                    if (channelState !== 'joined') {
+                        console.log('Realtime not subscribed, reconnecting...');
+                        subscribeToTasks();
+                    }
+                } else {
+                    // No channel exists, subscribe
+                    console.log('No Realtime channel, subscribing...');
+                    subscribeToTasks();
+                }
             }
         });
 
