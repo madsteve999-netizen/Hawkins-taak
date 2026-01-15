@@ -1728,6 +1728,24 @@
         </div>
     </div>
 
+    <!-- МОДАЛКА СБОЯ СВЯЗИ -->
+    <div id="connection-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title" style="color:var(--red); font-size:1.5rem;">⚠ ОШИБКА СВЯЗИ С ЦЕНТРОМ</div>
+            <div style="color: #ccc; text-align: center; margin: 20px 0; line-height: 1.6;">
+                НЕ УДАЛОСЬ УСТАНОВИТЬ СОЕДИНЕНИЕ С СЕРВЕРОМ СИНХРОНИЗАЦИИ.
+                <br><br>
+                ПЕРЕЙТИ В АВТОНОМНЫЙ РЕЖИМ?
+            </div>
+            <div class="modal-actions" style="flex-direction:column; gap:10px;">
+                <button class="modal-btn primary"
+                    style="background:var(--red); border-color:var(--red); font-size:1.1rem;"
+                    onclick="goOfflineMode()">ДА, РАБОТАТЬ ЛОКАЛЬНО</button>
+                <button class="modal-btn" onclick="retryConnection()">НЕТ, ПОВТОРИТЬ ПОПЫТКУ</button>
+            </div>
+        </div>
+    </div>
+
     <!-- МОДАЛКА ГОНГА -->
     <div id="alarm-modal" class="modal-overlay">
         <div class="modal-box">
@@ -1745,14 +1763,13 @@
         </div>
     </div>
 
-    <!-- АУДИО -->
+    <!-- АУДИО (LAZY LOAD - src will be set after init) -->
     <audio id="audio" loop></audio>
     <!-- Silent Loop for iOS Background Timer -->
     <audio id="silence-loop" loop
         src="data:audio/mp3;base64,//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD//////////////////////////////////////////////////////////////////wAAAP//OEAAAAAAAAAAAAAAAAAAAAAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAAAAAAAAAAAAACCAAAAAAAAABAAAA//OECQAAAAABIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//OECQAAAAABIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"></audio>
-    <audio id="vecna-sfx"
-        src="https://www.myinstants.com/media/sounds/stranger-things-vecna-grandfather-clock.mp3"></audio>
-    <audio id="gong-sfx" src="https://www.myinstants.com/media/sounds/undertakers-bell-1.mp3" loop></audio>
+    <audio id="vecna-sfx"></audio>
+    <audio id="gong-sfx" loop></audio>
 
     <!-- Sync Indicator -->
     <div class="sync-indicator" id="sync-indicator">ОТПРАВКА...</div>
@@ -1781,6 +1798,144 @@
                 }
             } catch (error) {
                 console.error('Supabase init error:', error);
+            }
+        }
+
+        // ========== AUDIO LAZY LOADING ==========
+        const AUDIO_URLS = {
+            vecna: 'https://www.myinstants.com/media/sounds/stranger-things-vecna-grandfather-clock.mp3',
+            gong: 'https://www.myinstants.com/media/sounds/undertakers-bell-1.mp3'
+        };
+
+        let audioLoaded = false;
+        let audioLoadAttempted = false;
+
+        function loadAudioFiles() {
+            if (audioLoadAttempted) return;
+            audioLoadAttempted = true;
+
+            console.log('Loading audio files...');
+
+            // Load Vecna SFX
+            const vecnaAudio = document.getElementById('vecna-sfx');
+            vecnaAudio.src = AUDIO_URLS.vecna;
+            vecnaAudio.addEventListener('error', () => {
+                console.warn('Failed to load Vecna audio (firewall block?)');
+            });
+            vecnaAudio.addEventListener('canplaythrough', () => {
+                console.log('Vecna audio loaded successfully');
+            }, { once: true });
+
+            // Load Gong SFX
+            const gongAudio = document.getElementById('gong-sfx');
+            gongAudio.src = AUDIO_URLS.gong;
+            gongAudio.addEventListener('error', () => {
+                console.warn('Failed to load Gong audio (firewall block?)');
+            });
+            gongAudio.addEventListener('canplaythrough', () => {
+                console.log('Gong audio loaded successfully');
+            }, { once: true });
+
+            audioLoaded = true;
+        }
+
+        // ========== CONNECTION MODAL HANDLERS ==========
+        let connectionTimeout = null;
+        let isOfflineMode = false;
+
+        function showConnectionModal() {
+            document.getElementById('connection-modal').classList.add('open');
+        }
+
+        function hideConnectionModal() {
+            document.getElementById('connection-modal').classList.remove('open');
+        }
+
+        function goOfflineMode() {
+            console.log('User chose offline mode');
+            isOfflineMode = true;
+            hideConnectionModal();
+            showToast('АВТОНОМНЫЙ РЕЖИМ АКТИВИРОВАН');
+
+            // Clear any pending connection attempts
+            if (connectionTimeout) {
+                clearTimeout(connectionTimeout);
+                connectionTimeout = null;
+            }
+        }
+
+        async function retryConnection() {
+            console.log('Retrying connection...');
+            hideConnectionModal();
+            showToast('ПОВТОРНАЯ ПОПЫТКА ПОДКЛЮЧЕНИЯ...');
+
+            // Try to initialize auth again
+            await initializeApp();
+        }
+
+        // ========== APP INITIALIZATION ==========
+        async function initializeApp() {
+            try {
+                console.log('Initializing app...');
+
+                // Initialize Supabase
+                initSupabase();
+
+                // Load tasks and render UI
+                render();
+
+                // Try to check auth state with timeout
+                if (supabaseClient && !isOfflineMode) {
+                    const authPromise = supabaseClient.auth.getSession();
+
+                    // Set timeout for connection (3 seconds)
+                    connectionTimeout = setTimeout(() => {
+                        console.warn('Connection timeout - showing modal');
+                        showConnectionModal();
+                    }, 3000);
+
+                    try {
+                        const { data, error } = await authPromise;
+
+                        // Clear timeout if successful
+                        if (connectionTimeout) {
+                            clearTimeout(connectionTimeout);
+                            connectionTimeout = null;
+                        }
+
+                        if (error) throw error;
+
+                        if (data.session) {
+                            currentUser = data.session.user;
+                            await handleLogin();
+                        } else {
+                            updateAuthUI();
+                        }
+                    } catch (error) {
+                        console.error('Auth check error:', error);
+
+                        // Clear timeout
+                        if (connectionTimeout) {
+                            clearTimeout(connectionTimeout);
+                            connectionTimeout = null;
+                        }
+
+                        // Show connection modal
+                        showConnectionModal();
+                    }
+                } else {
+                    // No Supabase or offline mode - just update UI
+                    updateAuthUI();
+                }
+
+                // Load audio files AFTER initialization (lazy load)
+                setTimeout(() => {
+                    loadAudioFiles();
+                }, 500);
+
+            } catch (error) {
+                console.error('App initialization error:', error);
+                render(); // Still render the app even if there's an error
             }
         }
 
@@ -3622,6 +3777,9 @@
                 silence.play().catch(() => { });
             }
         }
+
+        // ========== START APP ==========
+        initializeApp();
 
     </script>
 </body>
