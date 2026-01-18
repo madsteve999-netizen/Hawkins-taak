@@ -168,6 +168,7 @@ let newSelectedColor = 'red';
 let currentFontSize = 1.1;
 let currentFontFamily = "'Courier New', Courier, monospace";
 let taskToDeleteId = null; // Глобальная переменная для удаления
+let prependMode = false; // Режим добавления в начало списка
 
 function loadTasks() {
     let data = [];
@@ -731,6 +732,21 @@ function selectNewColor(color) {
     document.getElementById('new-col-' + color).classList.add('selected');
 }
 
+/**
+ * Переключает режим добавления задач в начало списка
+ */
+function togglePrependMode() {
+    prependMode = !prependMode;
+    const btn = document.getElementById('prepend-toggle');
+
+    if (prependMode) {
+        btn.classList.add('active');
+        playSfx('click'); // Звуковой эффект при активации
+    } else {
+        btn.classList.remove('active');
+    }
+}
+
 function openSettingsModal() {
     document.getElementById('settings-modal').classList.add('open');
     const val = Math.round(currentFontSize * 16);
@@ -1038,11 +1054,29 @@ function addTask() {
         txt: val,
         done: false,
         color: newSelectedColor,
-        order_index: tasks.length
+        order_index: prependMode ? -1 : tasks.length // Временный индекс для начала списка
     };
-    tasks.push(newTask);
+
+    // Добавление в начало или конец в зависимости от режима
+    if (prependMode) {
+        tasks.unshift(newTask); // Добавить в начало массива
+        // Пересчитать order_index для всех задач
+        tasks.forEach((t, idx) => {
+            t.order_index = idx;
+        });
+    } else {
+        tasks.push(newTask); // Добавить в конец массива
+    }
+
     inp.value = '';
     playSfx('click');
+
+    // Выключить режим prepend после добавления задачи
+    if (prependMode) {
+        prependMode = false;
+        document.getElementById('prepend-toggle').classList.remove('active');
+    }
+
     save();
     render();
 
