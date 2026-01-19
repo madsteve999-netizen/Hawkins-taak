@@ -1333,13 +1333,22 @@ async function sendOTP() {
         return;
     }
 
+    showSyncIndicator();
+
     try {
-        const { error } = await supabaseClient.auth.signInWithOtp({
+        // ADDED TIMEOUT: Prevent hanging on slow network
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('TIMEOUT')), 10000)
+        );
+
+        const otpPromise = supabaseClient.auth.signInWithOtp({
             email: email,
             options: {
                 shouldCreateUser: true
             }
         });
+
+        const { error } = await Promise.race([otpPromise, timeoutPromise]);
 
         if (error) throw error;
 
@@ -1349,7 +1358,13 @@ async function sendOTP() {
         showToast('КОД ОТПРАВЛЕН НА EMAIL');
     } catch (error) {
         console.error('OTP Error:', error);
-        showToast('ОШИБКА ОТПРАВКИ: ' + error.message);
+        if (error.message === 'TIMEOUT') {
+            showToast('СЕТЬ ТОРМОЗИТ: ПРЕВЫШЕНО ВРЕМЯ ОЖИДАНИЯ');
+        } else {
+            showToast('ОШИБКА ОТПРАВКИ: ' + error.message);
+        }
+    } finally {
+        hideSyncIndicator();
     }
 }
 
@@ -1364,12 +1379,21 @@ async function verifyOTP() {
         return;
     }
 
+    showSyncIndicator();
+
     try {
-        const { data, error } = await supabaseClient.auth.verifyOtp({
+        // ADDED TIMEOUT: Prevent hanging on slow network
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('TIMEOUT')), 10000)
+        );
+
+        const verifyPromise = supabaseClient.auth.verifyOtp({
             email: pendingEmail,
             token: code,
             type: 'email'
         });
+
+        const { data, error } = await Promise.race([verifyPromise, timeoutPromise]);
 
         if (error) throw error;
 
@@ -1378,7 +1402,13 @@ async function verifyOTP() {
         showToast('СВЯЗЬ УСТАНОВЛЕНА');
     } catch (error) {
         console.error('Verify Error:', error);
-        showToast('НЕВЕРНЫЙ КОД: ' + error.message);
+        if (error.message === 'TIMEOUT') {
+            showToast('СЕТЬ ТОРМОЗИТ: ПРЕВЫШЕНО ВРЕМЯ ОЖИДАНИЯ');
+        } else {
+            showToast('НЕВЕРНЫЙ КОД: ' + error.message);
+        }
+    } finally {
+        hideSyncIndicator();
     }
 }
 
@@ -1449,9 +1479,34 @@ function updateAuthUI(state) {
 async function handleLogin() {
     if (!currentUser) return;
 
-    // Trigger synchronization
-    await syncTasksOnLogin();
-    await syncNotesOnLogin();
+    // Trigger synchronization with timeout protection
+    try {
+        // Wrap syncTasksOnLogin with timeout
+        const taskSyncTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('TASK_SYNC_TIMEOUT')), 15000)
+        );
+        await Promise.race([syncTasksOnLogin(), taskSyncTimeout]);
+    } catch (error) {
+        console.error('Task sync error:', error);
+        if (error.message === 'TASK_SYNC_TIMEOUT') {
+            showToast('СИНХРОНИЗАЦИЯ ЗАДАЧ: ПРЕВЫШЕНО ВРЕМЯ ОЖИДАНИЯ');
+            hideSyncIndicator();
+        }
+    }
+
+    try {
+        // Wrap syncNotesOnLogin with timeout
+        const notesSyncTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('NOTES_SYNC_TIMEOUT')), 15000)
+        );
+        await Promise.race([syncNotesOnLogin(), notesSyncTimeout]);
+    } catch (error) {
+        console.error('Notes sync error:', error);
+        if (error.message === 'NOTES_SYNC_TIMEOUT') {
+            showToast('СИНХРОНИЗАЦИЯ ЗАМЕТОК: ПРЕВЫШЕНО ВРЕМЯ ОЖИДАНИЯ');
+            hideSyncIndicator();
+        }
+    }
 
     // Subscribe to realtime updates
     subscribeToTasks();
