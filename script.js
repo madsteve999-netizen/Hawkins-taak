@@ -1152,6 +1152,44 @@ function toggle(id) {
     }
 }
 
+/**
+ * Перемещает задачу в начало списка активных задач
+ */
+async function moveToTop(id) {
+    const taskIndex = tasks.findIndex(x => String(x.id) === String(id));
+    if (taskIndex === -1) return;
+
+    const task = tasks[taskIndex];
+
+    // Проверяем, что задача не завершена и не находится уже на первом месте
+    if (task.done) return;
+
+    // Находим индекс первой активной задачи
+    const firstActiveIndex = tasks.findIndex(t => !t.done);
+    if (firstActiveIndex === -1 || taskIndex === firstActiveIndex) return;
+
+    // Удаляем задачу из текущей позиции
+    tasks.splice(taskIndex, 1);
+
+    // Вставляем задачу в начало списка активных задач
+    tasks.splice(firstActiveIndex, 0, task);
+
+    // Пересчитываем order_index для всех задач
+    tasks.forEach((t, idx) => {
+        t.order_index = idx;
+    });
+
+    playSfx('click');
+    save();
+    render();
+
+    // Синхронизация с облаком, если пользователь залогинен
+    if (currentUser) {
+        // Обновляем order_index для всех задач в облаке
+        await updateTaskOrderInCloud();
+    }
+}
+
 function save() {
     try { localStorage.setItem(DB_KEY, JSON.stringify(tasks)); } catch (e) { }
 }
@@ -1181,6 +1219,7 @@ function render() {
         li.innerHTML = `
             <div class="checkbox" onclick="toggle('${taskIdStr}')"></div>
             <span class="task-text" onclick="toggle('${taskIdStr}')">${escapeHtml(t.txt)}</span>
+            ${!t.done ? `<button class="btn-action btn-move-top" onclick="moveToTop('${taskIdStr}')" title="Переместить в начало">▲</button>` : ''}
             <button class="btn-action btn-edit" onclick="openEditModal('${taskIdStr}')">✎</button>
             <button class="btn-action btn-del" onclick="del('${taskIdStr}')">×</button>
         `;
