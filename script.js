@@ -1645,12 +1645,15 @@ function removeDuplicateTasks(taskArray) {
     return deduplicated;
 }
 
-// ========== TASK SYNCHRONIZATION (CLOUD TRUTH WITH MERGE LOGIC) ==========
+// ========== TASK SYNCHRONIZATION (CLOUD IS ONLY SOURCE OF TRUTH) ==========
 async function syncTasksOnLogin() {
     if (!currentUser || !supabaseClient) return;
     showSyncIndicator();
 
     try {
+        // CRITICAL FIX: DO NOT upload localStorage tasks to cloud during sync
+        // Cloud is the ONLY source of truth. LocalStorage is only for offline work.
+
         // 1. Get ALL cloud tasks (excluding soft-deleted)
         const { data: cloudTasks, error } = await supabaseClient
             .from('tasks')
@@ -1661,70 +1664,8 @@ async function syncTasksOnLogin() {
 
         if (error) throw error;
 
-        // 2. Create Maps for fast lookup by both ID and title
-        const cloudTasksById = new Map();
-        const cloudTasksByTitle = new Map();
-
-        if (cloudTasks) {
-            cloudTasks.forEach(ct => {
-                cloudTasksById.set(String(ct.id), ct);
-                cloudTasksByTitle.set(ct.title, ct);
-            });
-        }
-
-        // 3. CRITICAL FIX: Process local tasks - upload ONLY if not in cloud by TITLE
-        // We prioritize title matching because local tasks may have temporary IDs (Date.now())
-        // while the cloud version has the real database ID
-        const localTasks = tasks;
-        const uploadedTasks = [];
-
-        for (const localTask of localTasks) {
-            // CRITICAL: Check by TITLE FIRST to avoid uploading stale localStorage data
-            const cloudMatchByTitle = cloudTasksByTitle.get(localTask.txt);
-
-            if (!cloudMatchByTitle) {
-                // Task doesn't exist in cloud by title - it's truly new, upload it
-                console.log('Uploading new local task:', localTask.txt);
-
-                const { data: newTask, error: uploadError } = await supabaseClient
-                    .from('tasks')
-                    .insert({
-                        user_id: currentUser.id,
-                        title: localTask.txt,
-                        is_completed: localTask.done,
-                        color: localTask.color || 'red',
-                        order_index: localTask.order_index || 0,
-                        is_deleted: false
-                    })
-                    .select()
-                    .single();
-
-                if (!uploadError && newTask) {
-                    uploadedTasks.push(newTask);
-                    console.log('Successfully uploaded:', newTask.title);
-                } else if (uploadError) {
-                    console.error('Upload error for task:', localTask.txt, uploadError);
-                }
-            } else {
-                // Task exists in cloud by title - cloud is truth, ignore local version
-                // This prevents uploading stale localStorage data when cloud has newer version
-                console.log('Task exists in cloud by title, skipping upload:', localTask.txt,
-                    'Local ID:', localTask.id, 'Cloud ID:', cloudMatchByTitle.id);
-            }
-        }
-
-        // 4. Fetch fresh cloud data after uploads
-        const { data: freshCloudTasks, error: refreshError } = await supabaseClient
-            .from('tasks')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('is_deleted', false)
-            .order('order_index', { ascending: true });
-
-        if (refreshError) throw refreshError;
-
-        // 5. Convert cloud tasks to local format
-        const convertedCloudTasks = (freshCloudTasks || []).map(ct => ({
+        // 2. Convert cloud tasks to local format
+        const convertedCloudTasks = (cloudTasks || []).map(ct => ({
             id: ct.id,
             txt: ct.title,
             done: ct.is_completed,
@@ -1732,27 +1673,21 @@ async function syncTasksOnLogin() {
             order_index: ct.order_index || 0
         }));
 
-        // 6. CRITICAL: REPLACE local tasks with cloud data (Cloud is source of truth)
-        // This ensures we always use the latest cloud version, not stale localStorage
+        // 3. CRITICAL: REPLACE local tasks with cloud data (Cloud is source of truth)
+        // This completely overwrites localStorage with fresh cloud data
         tasks = convertedCloudTasks;
 
-        // 7. CRITICAL: Remove any duplicates by ID (safety check)
+        // 4. Remove any duplicates by ID (safety check)
         tasks = removeDuplicateTasks(tasks);
 
-        // 8. Sort by order_index
+        // 5. Sort by order_index
         tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
 
-        // 9. Save to localStorage (now contains fresh cloud data)
+        // 6. Save to localStorage (now contains fresh cloud data)
         save();
         render();
 
-        const uploadCount = uploadedTasks.length;
-        if (uploadCount > 0) {
-            showToast(`СИНХРОНИЗАЦИЯ: ${uploadCount} ЗАДАЧ ЗАГРУЖЕНО`);
-        } else {
-            showToast('СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА');
-        }
-
+        showToast('СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА');
         console.log('Sync complete. Total tasks:', tasks.length);
     } catch (error) {
         console.error('Sync Error:', error);
