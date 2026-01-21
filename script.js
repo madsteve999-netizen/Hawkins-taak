@@ -1672,16 +1672,18 @@ async function syncTasksOnLogin() {
             });
         }
 
-        // 3. Process local tasks - upload ONLY if not in cloud by ID or title
+        // 3. CRITICAL FIX: Process local tasks - upload ONLY if not in cloud by TITLE
+        // We prioritize title matching because local tasks may have temporary IDs (Date.now())
+        // while the cloud version has the real database ID
         const localTasks = tasks;
         const uploadedTasks = [];
 
         for (const localTask of localTasks) {
-            const cloudMatchById = cloudTasksById.get(String(localTask.id));
+            // CRITICAL: Check by TITLE FIRST to avoid uploading stale localStorage data
             const cloudMatchByTitle = cloudTasksByTitle.get(localTask.txt);
 
-            if (!cloudMatchById && !cloudMatchByTitle) {
-                // Task doesn't exist in cloud - upload it
+            if (!cloudMatchByTitle) {
+                // Task doesn't exist in cloud by title - it's truly new, upload it
                 console.log('Uploading new local task:', localTask.txt);
 
                 const { data: newTask, error: uploadError } = await supabaseClient
@@ -1704,8 +1706,10 @@ async function syncTasksOnLogin() {
                     console.error('Upload error for task:', localTask.txt, uploadError);
                 }
             } else {
-                // Task exists in cloud - cloud is truth
-                console.log('Task exists in cloud (by ID or title), using cloud version:', localTask.txt);
+                // Task exists in cloud by title - cloud is truth, ignore local version
+                // This prevents uploading stale localStorage data when cloud has newer version
+                console.log('Task exists in cloud by title, skipping upload:', localTask.txt,
+                    'Local ID:', localTask.id, 'Cloud ID:', cloudMatchByTitle.id);
             }
         }
 
@@ -1728,8 +1732,8 @@ async function syncTasksOnLogin() {
             order_index: ct.order_index || 0
         }));
 
-        // 6. MERGE LOGIC: Replace local tasks with cloud data
-        // This ensures cloud is the source of truth
+        // 6. CRITICAL: REPLACE local tasks with cloud data (Cloud is source of truth)
+        // This ensures we always use the latest cloud version, not stale localStorage
         tasks = convertedCloudTasks;
 
         // 7. CRITICAL: Remove any duplicates by ID (safety check)
@@ -1738,7 +1742,7 @@ async function syncTasksOnLogin() {
         // 8. Sort by order_index
         tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
 
-        // 9. Save and render
+        // 9. Save to localStorage (now contains fresh cloud data)
         save();
         render();
 
