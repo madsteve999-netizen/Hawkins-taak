@@ -1062,7 +1062,7 @@ async function addTask() {
         id: Date.now(),
         txt: val,
         status: prependMode ? 'active' : 'deferred', // If prepend mode: active, else: deferred
-        color: newSelectedColor,
+        color: prependMode ? newSelectedColor : 'grey', // Серый для отложенных задач
         order_index: 0, // Will be recalculated below
         created_at: Date.now() // Timestamp создания задачи
     };
@@ -1120,7 +1120,7 @@ async function addTask() {
 
 async function uploadTaskToCloud(task) {
     if (!currentUser || !supabaseClient) return;
-    showSyncIndicator();
+    // CRITICAL: NO showSyncIndicator() - it blocks drag-and-drop after adding task!
 
     try {
         const { data, error } = await supabaseClient
@@ -1189,9 +1189,8 @@ async function uploadTaskToCloud(task) {
         }
     } catch (error) {
         console.error('Upload Error:', error);
-    } finally {
-        hideSyncIndicator();
     }
+    // CRITICAL: NO hideSyncIndicator() - sync is non-blocking
 }
 
 function toggle(id) {
@@ -1260,8 +1259,9 @@ async function moveToDeferred(id) {
     const task = tasks.find(x => String(x.id) === String(id));
     if (!task) return;
 
-    // Меняем статус на 'deferred'
+    // Меняем статус на 'deferred' и цвет на серый
     task.status = 'deferred';
+    task.color = 'grey';
 
     playSfx('click');
     save();
@@ -1269,7 +1269,7 @@ async function moveToDeferred(id) {
 
     // Синхронизация с облаком, если пользователь залогинен
     if (currentUser) {
-        await updateTaskInCloud(id, { status: 'deferred' }); // FIX: Sync status instead of is_completed
+        await updateTaskInCloud(id, { status: 'deferred', color: 'grey' }); // Синхронизируем статус и цвет
     }
 }
 
@@ -1611,7 +1611,9 @@ function initDrag() {
             forceFallback: true, // Fix for iOS scrolling
             fallbackClass: 'sortable-fallback',
             fallbackOnBody: true,
-            touchStartThreshold: 5,
+            touchStartThreshold: 15, // BUGFIX: Increased to 15 to prevent micro-movements when clicking menu
+            filter: '.checkbox, .btn-menu, .task-menu-dropdown', // BUGFIX: Exclude checkbox, menu button and dropdown from drag
+            preventOnFilter: false, // Allow clicks on filtered elements
             onEnd: (evt) => {
                 // Determine which list the task was dropped into
                 const targetListId = evt.to.id;
@@ -1653,7 +1655,7 @@ function initDrag() {
                     clearTimeout(dragDebounceTimer);
                     dragDebounceTimer = setTimeout(() => {
                         updateTaskOrderInCloud();
-                    }, 2000); // Wait 2s after user stops dragging
+                    }, 500); // OPTIMIZATION: Reduced from 2000ms to 500ms for faster sync
                 }
             }
         };
@@ -1987,7 +1989,8 @@ async function uploadTask(task) {
 
 async function updateTaskOrderInCloud(excludeTaskId = null) {
     if (!currentUser || !supabaseClient) return;
-    showSyncIndicator();
+    // CRITICAL: NO showSyncIndicator() here - it blocks drag-and-drop!
+    // Sync happens silently in background
 
     try {
         // CRITICAL FIX: Filter out the excluded task (newly added) to avoid duplicates
@@ -1997,31 +2000,35 @@ async function updateTaskOrderInCloud(excludeTaskId = null) {
 
         console.log(`Updating order for ${tasksToUpdate.length} tasks (excluding: ${excludeTaskId || 'none'})`);
 
-        // CRITICAL FIX: Use UPDATE instead of UPSERT to avoid creating new records
-        // Update each task individually to ensure we only modify existing records
-        for (const task of tasksToUpdate) {
-            const { error } = await supabaseClient
-                .from('tasks')
-                .update({
-                    order_index: task.order_index,
-                    status: task.status || 'active',
-                    is_completed: task.status === 'completed'
-                })
-                .eq('id', task.id)
-                .eq('user_id', currentUser.id);
+        // PERFORMANCE OPTIMIZATION: Batch update using upsert instead of loop
+        // This reduces N sequential requests to 1 batch request
+        const updates = tasksToUpdate.map(task => ({
+            id: task.id,
+            user_id: currentUser.id,
+            order_index: task.order_index,
+            status: task.status || 'active',
+            is_completed: task.status === 'completed',
+            title: task.txt,
+            color: task.color || 'red',
+            created_at: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString()
+        }));
 
-            if (error) {
-                console.error(`Failed to update task ${task.id}:`, error);
-            }
-        }
+        const { error } = await supabaseClient
+            .from('tasks')
+            .upsert(updates, {
+                onConflict: 'id',
+                ignoreDuplicates: false
+            });
 
-        console.log('Order update complete');
+        if (error) throw error;
+
+        console.log('Batch order update complete');
     } catch (error) {
         console.error('Update Order Error:', error);
-        showToast('ОШИБКА ОБНОВЛЕНИЯ ПОРЯДКА');
-    } finally {
-        hideSyncIndicator();
+        // Don't show toast on background sync errors - it's annoying
+        // Only log to console
     }
+    // CRITICAL: NO hideSyncIndicator() here - sync is non-blocking
 }
 
 async function updateTaskInCloud(taskId, updates) {
