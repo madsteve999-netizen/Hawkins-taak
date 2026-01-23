@@ -1824,13 +1824,26 @@ async function syncTasksOnLogin() {
         if (error) throw error;
 
         // 2. Convert cloud tasks to local format
-        const convertedCloudTasks = (cloudTasks || []).map(ct => ({
-            id: ct.id,
-            txt: ct.title,
-            done: ct.is_completed,
-            color: ct.color || 'red',
-            order_index: ct.order_index || 0
-        }));
+        const convertedCloudTasks = (cloudTasks || []).map(ct => {
+            // Support new 'status' field with backward compatibility
+            let status = 'active'; // default
+            if (ct.status) {
+                // New format: use status field directly
+                status = ct.status;
+            } else if (ct.is_completed) {
+                // Old format: fall back to is_completed
+                status = 'completed';
+            }
+
+            return {
+                id: ct.id,
+                txt: ct.title,
+                status: status, // Use status instead of done
+                color: ct.color || 'red',
+                order_index: ct.order_index || 0,
+                created_at: ct.created_at ? new Date(ct.created_at).getTime() : Date.now()
+            };
+        });
 
         // 3. CRITICAL: REPLACE local tasks with cloud data (Cloud is source of truth)
         // This completely overwrites localStorage with fresh cloud data
@@ -1978,87 +1991,9 @@ async function deleteTaskFromCloud(taskId) {
 }
 
 // ========== TASKS SYNCHRONIZATION ==========
-async function syncTasksOnLogin() {
-    if (!currentUser || !supabaseClient) return;
-    showSyncIndicator();
-
-    try {
-        console.log('Syncing tasks from cloud...');
-
-        // Get all non-deleted tasks from cloud
-        const { data: cloudTasks, error } = await supabaseClient
-            .from('tasks')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('is_deleted', false);
-
-        if (error) throw error;
-
-        console.log('Cloud tasks received:', cloudTasks?.length || 0);
-
-        if (cloudTasks && cloudTasks.length > 0) {
-            // Convert cloud tasks to local format
-            const cloudTasksConverted = cloudTasks.map(ct => {
-                // NEW: Properly map status field with backward compatibility
-                let status = 'active'; // default
-                if (ct.status) {
-                    // New format: use status field directly
-                    status = ct.status;
-                } else if (ct.is_completed) {
-                    // Old format: fall back to is_completed
-                    status = 'completed';
-                }
-
-                return {
-                    id: ct.id,
-                    txt: ct.title,
-                    status: status, // FIX: Use status instead of done
-                    color: ct.color || 'red',
-                    order_index: ct.order_index || 0,
-                    created_at: ct.created_at ? new Date(ct.created_at).getTime() : Date.now()
-                };
-            });
-
-            // Merge with local tasks
-            const localTasks = tasks.slice();
-
-            // Update existing tasks or add new ones from cloud
-            cloudTasksConverted.forEach(cloudTask => {
-                const localIndex = localTasks.findIndex(t => String(t.id) === String(cloudTask.id));
-                if (localIndex !== -1) {
-                    // Update existing task with cloud data (cloud is source of truth)
-                    localTasks[localIndex] = cloudTask;
-                } else {
-                    // Add new task from cloud
-                    localTasks.push(cloudTask);
-                }
-            });
-
-            // Upload any local-only tasks to cloud
-            for (const localTask of localTasks) {
-                const existsInCloud = cloudTasksConverted.find(ct => String(ct.id) === String(localTask.id));
-                if (!existsInCloud) {
-                    console.log('Uploading local-only task to cloud:', localTask.id);
-                    await uploadTaskToCloud(localTask);
-                }
-            }
-
-            // Update local tasks
-            tasks = removeDuplicateTasks(localTasks);
-            tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-
-            save();
-            render();
-
-            console.log('Tasks synced successfully. Total tasks:', tasks.length);
-        }
-    } catch (error) {
-        console.error('Tasks Sync Error:', error);
-        showToast('ОШИБКА СИНХРОНИЗАЦИИ ЗАДАЧ');
-    } finally {
-        hideSyncIndicator();
-    }
-}
+// NOTE: This section header is kept for code organization.
+// The actual syncTasksOnLogin() function is defined above (lines ~1808-1857).
+// The duplicate function that was here has been removed to fix task duplication bug.
 
 // ========== NOTES SYNCHRONIZATION ==========
 async function syncNotesOnLogin() {
