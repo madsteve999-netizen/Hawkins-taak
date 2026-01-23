@@ -1003,6 +1003,11 @@ ul {
     text-align: center;
 }
 
+.menu-icon-svg {
+    min-width: 20px;
+    flex-shrink: 0;
+}
+
 .menu-label {
     flex: 1;
     letter-spacing: 0.5px;

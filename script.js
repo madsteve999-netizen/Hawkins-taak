@@ -1146,8 +1146,32 @@ async function uploadTaskToCloud(task) {
                 const newIdStr = String(data.id);
                 domElement.querySelector('.checkbox').setAttribute('onclick', `toggle('${newIdStr}')`);
                 domElement.querySelector('.task-text').setAttribute('onclick', `toggle('${newIdStr}')`);
-                domElement.querySelector('.btn-edit').setAttribute('onclick', `openEditModal('${newIdStr}')`);
-                domElement.querySelector('.btn-del').setAttribute('onclick', `del('${newIdStr}')`);
+
+                // Update menu button for active/deferred tasks
+                const menuBtn = domElement.querySelector('.btn-menu');
+                if (menuBtn) {
+                    menuBtn.setAttribute('onclick', `toggleTaskMenu('${newIdStr}', event)`);
+
+                    // Update all menu items inside dropdown
+                    const menuItems = domElement.querySelectorAll('.task-menu-dropdown .menu-item');
+                    menuItems.forEach(item => {
+                        const currentOnclick = item.getAttribute('onclick');
+                        if (currentOnclick) {
+                            // Replace old ID with new ID in all onclick handlers
+                            const updatedOnclick = currentOnclick.replace(
+                                new RegExp(`'${oldId}'`, 'g'),
+                                `'${newIdStr}'`
+                            );
+                            item.setAttribute('onclick', updatedOnclick);
+                        }
+                    });
+                }
+
+                // Update edit/delete buttons for completed tasks
+                const btnEdit = domElement.querySelector('.btn-edit');
+                const btnDel = domElement.querySelector('.btn-del');
+                if (btnEdit) btnEdit.setAttribute('onclick', `openEditModal('${newIdStr}')`);
+                if (btnDel) btnDel.setAttribute('onclick', `del('${newIdStr}')`);
             }
 
             save();
@@ -1235,6 +1259,48 @@ async function moveToDeferred(id) {
     // Синхронизация с облаком, если пользователь залогинен
     if (currentUser) {
         await updateTaskInCloud(id, { status: 'deferred' }); // FIX: Sync status instead of is_completed
+    }
+}
+
+/**
+ * Перемещает задачу из отложенных в начало списка активных
+ */
+async function moveToActive(id) {
+    const taskIndex = tasks.findIndex(x => String(x.id) === String(id));
+    if (taskIndex === -1) return;
+
+    const task = tasks[taskIndex];
+
+    // Меняем статус на 'active'
+    task.status = 'active';
+
+    // Удаляем задачу из текущей позиции
+    tasks.splice(taskIndex, 1);
+
+    // Находим индекс первой активной задачи
+    const firstActiveIndex = tasks.findIndex(t => t.status === 'active');
+
+    // Вставляем задачу в начало списка активных задач
+    if (firstActiveIndex !== -1) {
+        tasks.splice(firstActiveIndex, 0, task);
+    } else {
+        // Нет активных задач, добавляем в начало массива
+        tasks.unshift(task);
+    }
+
+    // Пересчитываем order_index для всех задач
+    tasks.forEach((t, idx) => {
+        t.order_index = idx;
+    });
+
+    playSfx('click');
+    save();
+    render();
+
+    // Синхронизация с облаком, если пользователь залогинен
+    if (currentUser) {
+        await updateTaskInCloud(id, { status: 'active' });
+        await updateTaskOrderInCloud();
     }
 }
 
@@ -1401,22 +1467,40 @@ function render() {
                     </svg>
                 </button>
                 <div class="task-menu-dropdown">
-                    <button class="menu-item" onclick="moveToTop('${taskIdStr}'); closeAllTaskMenus();" title="Переместить в начало">
-                        <span class="menu-icon">▲</span>
-                        <span class="menu-label">ВВЕРХ</span>
-                    </button>
-                    <button class="menu-item" onclick="openEditModal('${taskIdStr}'); closeAllTaskMenus();" title="Редактировать">
-                        <span class="menu-icon">✎</span>
-                        <span class="menu-label">РЕДАКТИРОВАТЬ</span>
-                    </button>
-                    <button class="menu-item" onclick="moveToDeferred('${taskIdStr}'); closeAllTaskMenus();" title="Переместить в отложку">
-                        <span class="menu-icon">⏸</span>
-                        <span class="menu-label">В ОТЛОЖКУ</span>
-                    </button>
-                    <button class="menu-item menu-item-danger" onclick="del('${taskIdStr}'); closeAllTaskMenus();" title="Удалить">
-                        <span class="menu-icon">×</span>
-                        <span class="menu-label">УДАЛИТЬ</span>
-                    </button>
+                    ${t.status === 'active' ? `
+                        <button class="menu-item" onclick="moveToTop('${taskIdStr}'); closeAllTaskMenus();" title="Переместить в начало">
+                            <span class="menu-icon">▲</span>
+                            <span class="menu-label">ВВЕРХ</span>
+                        </button>
+                        <button class="menu-item" onclick="openEditModal('${taskIdStr}'); closeAllTaskMenus();" title="Редактировать">
+                            <span class="menu-icon">✎</span>
+                            <span class="menu-label">РЕДАКТИРОВАТЬ</span>
+                        </button>
+                        <button class="menu-item" onclick="moveToDeferred('${taskIdStr}'); closeAllTaskMenus();" title="Переместить в отложку">
+                            <svg class="menu-icon-svg" viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: currentColor;">
+                                <rect x="6" y="4" width="4" height="16" rx="1"/>
+                                <rect x="14" y="4" width="4" height="16" rx="1"/>
+                            </svg>
+                            <span class="menu-label">В ОТЛОЖКУ</span>
+                        </button>
+                        <button class="menu-item menu-item-danger" onclick="del('${taskIdStr}'); closeAllTaskMenus();" title="Удалить">
+                            <span class="menu-icon">×</span>
+                            <span class="menu-label">УДАЛИТЬ</span>
+                        </button>
+                    ` : `
+                        <button class="menu-item" onclick="moveToActive('${taskIdStr}'); closeAllTaskMenus();" title="Переместить в активные">
+                            <span class="menu-icon">▲</span>
+                            <span class="menu-label">В АКТИВНЫЕ</span>
+                        </button>
+                        <button class="menu-item" onclick="openEditModal('${taskIdStr}'); closeAllTaskMenus();" title="Редактировать">
+                            <span class="menu-icon">✎</span>
+                            <span class="menu-label">РЕДАКТИРОВАТЬ</span>
+                        </button>
+                        <button class="menu-item menu-item-danger" onclick="del('${taskIdStr}'); closeAllTaskMenus();" title="Удалить">
+                            <span class="menu-icon">×</span>
+                            <span class="menu-label">УДАЛИТЬ</span>
+                        </button>
+                    `}
                 </div>
             ` : `
                 <button class="btn-action btn-edit" onclick="openEditModal('${taskIdStr}')">✎</button>
