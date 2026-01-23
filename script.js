@@ -1053,7 +1053,7 @@ function initApp() {
     });
 }
 
-function addTask() {
+async function addTask() {
     const inp = document.getElementById('task-input');
     const val = inp.value.trim();
     if (!val) return;
@@ -1092,6 +1092,9 @@ function addTask() {
     inp.value = '';
     playSfx('click');
 
+    // Сохранить значение prependMode перед сбросом
+    const wasPrependMode = prependMode;
+
     // Выключить режим prepend после добавления задачи
     if (prependMode) {
         prependMode = false;
@@ -1103,7 +1106,14 @@ function addTask() {
 
     // Sync to cloud if logged in
     if (currentUser) {
-        uploadTaskToCloud(newTask);
+        // CRITICAL FIX: Upload the new task first
+        await uploadTaskToCloud(newTask);
+
+        // CRITICAL FIX: If prepend mode was used, sync ALL task orders to cloud
+        // This ensures other devices receive the correct order_index for all tasks
+        if (wasPrependMode) {
+            await updateTaskOrderInCloud();
+        }
     }
 }
 
