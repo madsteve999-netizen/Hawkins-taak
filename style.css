@@ -1576,6 +1576,8 @@ body.void-mode #active-list li:first-child .checkbox {
     flex-shrink: 0;
     width: 26px;
     min-width: 26px;
+    margin-left: 12px;
+    /* Move slightly right from the border */
 }
 
 /* 4. Убираем "растягивание" текста, чтобы он прижался к центру */
