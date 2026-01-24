@@ -1467,7 +1467,7 @@ function render() {
 
         li.innerHTML = `
             <div class="checkbox" onclick="toggle('${taskIdStr}')"></div>
-            <span class="task-text" onclick="toggle('${taskIdStr}')">${escapeHtml(t.txt)}</span>
+            <span class="task-text" id="task-text-${taskIdStr}">${escapeHtml(t.txt)}</span>
             ${t.status !== 'completed' ? `
                 ${ageIndicator}
                 <button class="btn-menu" onclick="toggleTaskMenu('${taskIdStr}', event)" title="Меню">
@@ -1518,6 +1518,35 @@ function render() {
                 <button class="btn-action btn-del" onclick="del('${taskIdStr}')">×</button>
             `}
         `;
+
+        // ATTACH POPUP LISTENERS
+        const span = li.querySelector('.task-text');
+        if (span) {
+            const fullTxt = t.txt;
+
+            const isTruncated = (el) => {
+                return el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth;
+            };
+
+            // Desktop
+            span.addEventListener('mouseenter', (e) => {
+                if (isTruncated(e.target)) {
+                    showTaskPopup(e, fullTxt);
+                }
+            });
+            span.addEventListener('mouseleave', hideTaskPopup);
+            span.addEventListener('mousemove', (e) => updatePopupPosition(e));
+
+            // Mobile / Click
+            span.addEventListener('click', (e) => {
+                // If truncated, show popup. 
+                if (isTruncated(e.target)) {
+                    e.stopPropagation();
+                    showTaskPopup(e, fullTxt, true);
+                }
+                // If not truncated, DO NOTHING (user wants toggle only on checkbox)
+            });
+        }
 
         return li;
     };
@@ -2529,4 +2558,76 @@ function ensureAudioContext() {
 }
 
 // ========== START APP ==========
+// ========== TASK POPUP LOGIC ==========
+let popupLocked = false;
+
+function showTaskPopup(event, text, isClick = false) {
+    const popup = document.getElementById('task-detail-popup');
+    if (!popup) return;
+
+    // If locked by click, ignore hover
+    if (popupLocked && !isClick) return;
+
+    // If click, toggle lock or update
+    if (isClick) {
+        popupLocked = true;
+    }
+
+    popup.innerText = text;
+    popup.classList.add('visible');
+
+    updatePopupPosition(event, popup);
+}
+
+function hideTaskPopup() {
+    if (popupLocked) return;
+    const popup = document.getElementById('task-detail-popup');
+    if (popup) popup.classList.remove('visible');
+}
+
+function updatePopupPosition(event, popup) {
+    // Mobile/Small screen check
+    if (window.innerWidth < 768) {
+        // Reset to CSS center
+        popup.style.left = '50%';
+        popup.style.top = '50%';
+        popup.style.transform = 'translate(-50%, -50%)';
+        return;
+    }
+
+    // Desktop: Follow cursor with offset
+    if (!event) return;
+
+    // Add offset
+    const offset = 15; // px
+    let left = event.clientX + offset;
+    let top = event.clientY + offset;
+
+    // Boundary check (Prevent going off screen)
+    if (left + popup.offsetWidth > window.innerWidth) {
+        left = event.clientX - popup.offsetWidth - offset;
+    }
+    if (top + popup.offsetHeight > window.innerHeight) {
+        top = event.clientY - popup.offsetHeight - offset;
+    }
+
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+    popup.style.transform = 'none';
+}
+
+// Global click to close popup if locked
+document.addEventListener('click', (e) => {
+    if (!popupLocked) return;
+
+    // Ignore clicks on the popup logic itself (handled by stopPropagation in task click)
+    if (e.target.closest('#task-detail-popup')) return;
+
+    popupLocked = false;
+    hideTaskPopup();
+    // Force hide
+    const popup = document.getElementById('task-detail-popup');
+    if (popup) popup.classList.remove('visible');
+});
+
 initializeApp();

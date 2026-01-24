@@ -803,6 +803,17 @@ ul {
     text-shadow: 2px 2px 0 #000;
     letter-spacing: 0.5px;
     z-index: 2;
+
+    /* Tuncation Logic */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    cursor: default;
+    /* Indicate interactability */
 }
 
 .task-item.completed {
@@ -1556,4 +1567,56 @@ body.void-mode #active-list li:first-child .task-text {
     text-align: center;
     max-width: 85%;
     /* Чтобы слишком длинный текст не ломал верстку */
+}
+
+/* --- POPUP FOR LONG TASKS --- */
+.task-popup {
+    position: fixed;
+    z-index: 9999;
+    background: rgba(10, 10, 10, 0.98);
+    border: 2px solid var(--red);
+    padding: 20px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-family: 'Courier New', monospace;
+    max-width: 90vw;
+    width: auto;
+    min-width: 200px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.9), 0 0 10px rgba(255, 0, 0, 0.3);
+
+    display: none;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+
+    /* Styling */
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-radius: 4px;
+
+    /* Text styling */
+    text-transform: uppercase;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+
+    /* Position helper */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    /* Default to center for mobile, JS will override for desktop */
+}
+
+.task-popup.visible {
+    display: block;
+    opacity: 1;
+}
+
+/* Desktop hover positioning override logic will be handled in JS, 
+   but we can set a default for when it's just 'shown' */
+@media (min-width: 768px) {
+    .task-popup {
+        max-width: 400px;
+        /* Limit width on desktop */
+        transform: none;
+        /* Reset center transform for absolute positioning */
+    }
 }
