@@ -468,6 +468,7 @@ function startTimer() {
 
     // ACTIVATE THE VOID MODE
     document.body.classList.add('void-mode');
+    document.getElementById('app-ui').scrollTop = 0;
 
     timerInterval = setInterval(() => {
         const now = Date.now();
