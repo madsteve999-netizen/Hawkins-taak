@@ -1528,23 +1528,26 @@ function render() {
                 return el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth;
             };
 
-            // Desktop
-            span.addEventListener('mouseenter', (e) => {
-                if (isTruncated(e.target)) {
-                    showTaskPopup(e, fullTxt);
-                }
-            });
-            span.addEventListener('mouseleave', hideTaskPopup);
-            span.addEventListener('mousemove', (e) => updatePopupPosition(e));
+            // Desktop (only attach if device supports hover)
+            if (window.matchMedia('(hover: hover)').matches) {
+                span.addEventListener('mouseenter', (e) => {
+                    if (isTruncated(e.target)) {
+                        showTaskPopup(e, fullTxt);
+                    }
+                });
+                span.addEventListener('mouseleave', hideTaskPopup);
+                span.addEventListener('mousemove', (e) => updatePopupPosition(e));
+            }
 
-            // Mobile / Click
+            // Mobile / Click (Universally supported)
             span.addEventListener('click', (e) => {
                 // If truncated, show popup. 
                 if (isTruncated(e.target)) {
+                    e.preventDefault(); // Prevent phantom clicks/interactions
                     e.stopPropagation();
                     showTaskPopup(e, fullTxt, true);
                 }
-                // If not truncated, DO NOTHING (user wants toggle only on checkbox)
+                // If not truncated, DO NOTHING
             });
         }
 
