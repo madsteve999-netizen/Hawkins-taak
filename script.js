@@ -1918,15 +1918,12 @@ function initDrag() {
 
                 // DEBOUNCED cloud sync: Wait 2 seconds after user stops dragging
                 // This prevents sending updates while user is still moving the task
-                if (currentUser && task) {
+                // CRITICAL FIX: Update ALL tasks order, not just one task
+                if (currentUser) {
                     clearTimeout(dragDebounceTimer);
                     dragDebounceTimer = setTimeout(() => {
-                        console.log('Syncing task after drag-and-drop:', taskId);
-                        updateTaskInCloud(taskId, {
-                            status: task.status,
-                            container_type: task.container_type,
-                            order_index: task.order_index
-                        });
+                        console.log('Syncing ALL tasks order after drag-and-drop');
+                        updateTaskOrderInCloud(); // Update all tasks to sync order across devices
                     }, 2000); // 2 second delay after user stops dragging
                 }
             }
