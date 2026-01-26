@@ -8,14 +8,6 @@ let realtimeChannel = null;
 let notesRealtimeChannel = null;
 let pendingEmail = '';
 
-// ========== REALTIME FALLBACK MECHANISM ==========
-let isRealtimeWorking = false;
-let pollingInterval = null;
-let lastSyncTimestamp = 0;
-const POLLING_INTERVAL_MS = 3000; // 3 секунды между проверками
-let realtimeFailureCount = 0;
-const MAX_REALTIME_FAILURES = 3; // После 3 ошибок переключаемся на polling
-
 // Initialize Supabase after page loads
 function initSupabase() {
     try {
@@ -2073,11 +2065,6 @@ async function logout() {
             realtimeChannel = null;
         }
 
-        // Stop HTTP polling if active
-        stopHTTPPolling();
-        isRealtimeWorking = false;
-        realtimeFailureCount = 0;
-
         updateAuthUI();
         showToast('СВЯЗЬ РАЗОРВАНА');
     } catch (error) {
@@ -2196,10 +2183,6 @@ async function waitForOnline(timeout = 30000) {
 // ========== LOGIN HANDLER ==========
 async function handleLogin() {
     if (!currentUser) return;
-
-    // CRITICAL: Reset realtime failure count on login
-    realtimeFailureCount = 0;
-    isRealtimeWorking = false;
 
     // Check network connection first
     if (!isOnline()) {
@@ -2336,16 +2319,6 @@ async function syncTasksOnLogin() {
         save();
         render();
 
-        // 7. Initialize lastSyncTimestamp for HTTP polling
-        if (cloudTasks && cloudTasks.length > 0) {
-            const latestTask = cloudTasks.reduce((latest, task) => {
-                const taskTime = new Date(task.updated_at || task.created_at).getTime();
-                return taskTime > latest ? taskTime : latest;
-            }, 0);
-            lastSyncTimestamp = latestTask;
-            console.log('Initialized lastSyncTimestamp:', new Date(lastSyncTimestamp).toISOString());
-        }
-
         showToast('СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА');
         console.log('Sync complete. Total tasks:', tasks.length);
     } catch (error) {
@@ -2368,9 +2341,7 @@ async function uploadTask(task) {
                 status: task.status || 'active', // Use status field
                 is_completed: task.status === 'completed', // Derive from status for backward compatibility
                 color: task.color || 'red',
-                order_index: task.order_index || 0,
-                created_at: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                order_index: task.order_index || 0
             });
 
         if (error) throw error;
@@ -2420,8 +2391,7 @@ async function updateTaskOrderInCloud(excludeTaskId = null) {
             is_completed: task.status === 'completed',
             title: task.txt,
             color: task.color || 'red',
-            created_at: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString(),
-            updated_at: new Date().toISOString() // CRITICAL: Update timestamp for HTTP polling detection
+            created_at: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString()
         }));
 
         // Set a reasonable timeout for batch update (10 seconds)
@@ -2484,8 +2454,6 @@ async function updateTaskInCloud(taskId, updates) {
             cloudUpdates.status = updates.status;
             cloudUpdates.is_completed = updates.status === 'completed';
         }
-        // CRITICAL: Always update timestamp for HTTP polling detection
-        cloudUpdates.updated_at = new Date().toISOString();
 
         const updatePromise = supabaseClient
             .from('tasks')
@@ -2624,20 +2592,12 @@ function subscribeToTasks() {
 
             if (status === 'CHANNEL_ERROR') {
                 console.error('Realtime channel error:', err);
-                // Don't auto-switch to polling - let user manually trigger if needed
+                // Don't auto-reconnect immediately - let Supabase handle it
+                // User can manually refresh if needed
             } else if (status === 'SUBSCRIBED') {
                 console.log('Successfully subscribed to task updates');
-                // Сбрасываем счетчик ошибок при успешной подписке
-                realtimeFailureCount = 0;
-                isRealtimeWorking = true;
-                // Останавливаем polling если он был запущен
-                stopHTTPPolling();
             } else if (status === 'CLOSED') {
                 console.log('Realtime channel closed');
-                isRealtimeWorking = false;
-            } else if (status === 'TIMED_OUT') {
-                console.warn('Realtime subscription timed out');
-                // Don't auto-switch to polling
             }
         });
 }
