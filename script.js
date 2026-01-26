@@ -2349,8 +2349,13 @@ async function updateTaskOrderInCloud(excludeTaskId = null) {
     // CRITICAL: NO showSyncIndicator() here - it blocks drag-and-drop!
     // Sync happens silently in background
 
-    // Wrap in retry logic for network resilience
-    await retryWithBackoff(async () => {
+    // Quick network check - fail fast if offline
+    if (!isOnline()) {
+        console.log('Skipping order update: offline');
+        return;
+    }
+
+    try {
         // CRITICAL FIX: Filter out the excluded task (newly added) to avoid duplicates
         const tasksToUpdate = excludeTaskId
             ? tasks.filter(t => String(t.id) !== String(excludeTaskId))
@@ -2372,20 +2377,33 @@ async function updateTaskOrderInCloud(excludeTaskId = null) {
             created_at: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString()
         }));
 
-        const { error } = await supabaseClient
+        // Set a reasonable timeout for batch update (10 seconds)
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('BATCH_UPDATE_TIMEOUT')), 10000)
+        );
+
+        const updatePromise = supabaseClient
             .from('tasks')
             .upsert(updates, {
                 onConflict: 'id',
                 ignoreDuplicates: false
             });
 
+        const { error } = await Promise.race([updatePromise, timeoutPromise]);
+
         if (error) throw error;
 
         console.log('Batch order update complete');
-    }, 2, 500).catch(error => {
+    } catch (error) {
         // Silently log errors - don't show toast on background sync errors
-        console.error('Update Order Error (after retries):', error);
-    });
+        // Don't retry - this is a background operation
+        console.error('Update Order Error:', error.message || error);
+
+        // If it's a network error, the next drag-and-drop will retry naturally
+        if (error.message === 'BATCH_UPDATE_TIMEOUT') {
+            console.warn('Batch update timed out - will retry on next change');
+        }
+    }
     // CRITICAL: NO hideSyncIndicator() here - sync is non-blocking
 }
 
