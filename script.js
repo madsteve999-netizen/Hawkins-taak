@@ -8,6 +8,14 @@ let realtimeChannel = null;
 let notesRealtimeChannel = null;
 let pendingEmail = '';
 
+// ========== REALTIME FALLBACK MECHANISM ==========
+let isRealtimeWorking = false;
+let pollingInterval = null;
+let lastSyncTimestamp = 0;
+const POLLING_INTERVAL_MS = 3000; // 3 секунды между проверками
+let realtimeFailureCount = 0;
+const MAX_REALTIME_FAILURES = 3; // После 3 ошибок переключаемся на polling
+
 // Initialize Supabase after page loads
 function initSupabase() {
     try {
@@ -2065,6 +2073,11 @@ async function logout() {
             realtimeChannel = null;
         }
 
+        // Stop HTTP polling if active
+        stopHTTPPolling();
+        isRealtimeWorking = false;
+        realtimeFailureCount = 0;
+
         updateAuthUI();
         showToast('СВЯЗЬ РАЗОРВАНА');
     } catch (error) {
@@ -2319,6 +2332,16 @@ async function syncTasksOnLogin() {
         save();
         render();
 
+        // 7. Initialize lastSyncTimestamp for HTTP polling
+        if (cloudTasks && cloudTasks.length > 0) {
+            const latestTask = cloudTasks.reduce((latest, task) => {
+                const taskTime = new Date(task.updated_at || task.created_at).getTime();
+                return taskTime > latest ? taskTime : latest;
+            }, 0);
+            lastSyncTimestamp = latestTask;
+            console.log('Initialized lastSyncTimestamp:', new Date(lastSyncTimestamp).toISOString());
+        }
+
         showToast('СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА');
         console.log('Sync complete. Total tasks:', tasks.length);
     } catch (error) {
@@ -2341,7 +2364,9 @@ async function uploadTask(task) {
                 status: task.status || 'active', // Use status field
                 is_completed: task.status === 'completed', // Derive from status for backward compatibility
                 color: task.color || 'red',
-                order_index: task.order_index || 0
+                order_index: task.order_index || 0,
+                created_at: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString(),
+                updated_at: new Date().toISOString()
             });
 
         if (error) throw error;
@@ -2391,7 +2416,8 @@ async function updateTaskOrderInCloud(excludeTaskId = null) {
             is_completed: task.status === 'completed',
             title: task.txt,
             color: task.color || 'red',
-            created_at: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString()
+            created_at: task.created_at ? new Date(task.created_at).toISOString() : new Date().toISOString(),
+            updated_at: new Date().toISOString() // CRITICAL: Update timestamp for HTTP polling detection
         }));
 
         // Set a reasonable timeout for batch update (10 seconds)
@@ -2454,6 +2480,8 @@ async function updateTaskInCloud(taskId, updates) {
             cloudUpdates.status = updates.status;
             cloudUpdates.is_completed = updates.status === 'completed';
         }
+        // CRITICAL: Always update timestamp for HTTP polling detection
+        cloudUpdates.updated_at = new Date().toISOString();
 
         const updatePromise = supabaseClient
             .from('tasks')
@@ -2592,12 +2620,20 @@ function subscribeToTasks() {
 
             if (status === 'CHANNEL_ERROR') {
                 console.error('Realtime channel error:', err);
-                // Don't auto-reconnect immediately - let Supabase handle it
-                // User can manually refresh if needed
+                handleRealtimeError(err, 'tasks subscription');
             } else if (status === 'SUBSCRIBED') {
                 console.log('Successfully subscribed to task updates');
+                // Сбрасываем счетчик ошибок при успешной подписке
+                realtimeFailureCount = 0;
+                isRealtimeWorking = true;
+                // Останавливаем polling если он был запущен
+                stopHTTPPolling();
             } else if (status === 'CLOSED') {
                 console.log('Realtime channel closed');
+                isRealtimeWorking = false;
+            } else if (status === 'TIMED_OUT') {
+                console.warn('Realtime subscription timed out');
+                handleRealtimeError(new Error('TIMED_OUT'), 'tasks subscription');
             }
         });
 }
@@ -2643,6 +2679,81 @@ function subscribeToNotes() {
                 console.log('Notes realtime channel closed');
             }
         });
+}
+
+// ========== HTTP POLLING FALLBACK ==========
+function startHTTPPolling() {
+    // Останавливаем предыдущий polling если был
+    stopHTTPPolling();
+
+    console.log('🔄 Starting HTTP polling fallback (WebSocket unavailable)');
+    showToast('РЕЖИМ СОВМЕСТИМОСТИ: HTTP SYNC');
+
+    // Немедленная первая проверка
+    pollTasksFromCloud();
+
+    // Затем регулярные проверки каждые 3 секунды
+    pollingInterval = setInterval(() => {
+        pollTasksFromCloud();
+    }, POLLING_INTERVAL_MS);
+}
+
+function stopHTTPPolling() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+        console.log('⏹️ HTTP polling stopped');
+    }
+}
+
+async function pollTasksFromCloud() {
+    if (!currentUser || !supabaseClient) return;
+
+    try {
+        // Получаем timestamp последнего обновления из облака
+        const { data: cloudTasks, error } = await supabaseClient
+            .from('tasks')
+            .select('updated_at')
+            .eq('user_id', currentUser.id)
+            .eq('is_deleted', false)
+            .order('updated_at', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+
+        if (cloudTasks && cloudTasks.length > 0) {
+            const cloudTimestamp = new Date(cloudTasks[0].updated_at).getTime();
+
+            // Если есть изменения - синхронизируем
+            if (cloudTimestamp > lastSyncTimestamp) {
+                console.log('📥 Changes detected via polling, syncing...');
+                await syncTasksOnLogin();
+                lastSyncTimestamp = cloudTimestamp;
+            }
+        }
+    } catch (error) {
+        console.error('Polling error:', error);
+        // Не показываем toast - это фоновая операция
+    }
+}
+
+function handleRealtimeError(error, context) {
+    realtimeFailureCount++;
+    console.error(`Realtime error #${realtimeFailureCount} in ${context}:`, error);
+
+    if (realtimeFailureCount >= MAX_REALTIME_FAILURES) {
+        console.warn('⚠️ Too many Realtime failures, switching to HTTP polling');
+        isRealtimeWorking = false;
+
+        // Отписываемся от проблемного канала
+        if (realtimeChannel) {
+            supabaseClient.removeChannel(realtimeChannel);
+            realtimeChannel = null;
+        }
+
+        // Переключаемся на HTTP polling
+        startHTTPPolling();
+    }
 }
 
 function handleNotesRealtimeEvent(payload) {
