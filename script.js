@@ -3149,4 +3149,191 @@ document.addEventListener('click', (e) => {
     if (popup) popup.classList.remove('visible');
 });
 
+// ========== TEMPLATE MANAGER ==========
+let templates = [];
+
+async function toggleTemplatesMenu() {
+    const menu = document.getElementById('templates-menu');
+    const btn = document.getElementById('templates-toggle');
+
+    if (menu.classList.contains('hidden')) {
+        // Open menu
+        menu.classList.remove('hidden');
+        btn.classList.add('active');
+
+        // Check "Save" button state
+        checkSaveTemplateBtn();
+
+        // Fetch templates
+        await fetchTemplates();
+    } else {
+        // Close menu
+        menu.classList.add('hidden');
+        btn.classList.remove('active');
+    }
+}
+
+function checkSaveTemplateBtn() {
+    const taskInput = document.getElementById('task-input');
+    const saveBtn = document.getElementById('save-template-btn');
+    if (!taskInput || !saveBtn) return;
+
+    if (taskInput.value.trim().length > 0) {
+        saveBtn.disabled = false;
+        saveBtn.style.opacity = '1';
+    } else {
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.5';
+    }
+}
+
+// Listen for input changes to update Save button state
+document.getElementById('task-input')?.addEventListener('input', checkSaveTemplateBtn);
+
+async function fetchTemplates() {
+    if (!supabaseClient) return;
+
+    // Only try to fetch if we have a user, OR rely on RLS to deny if not logged in.
+    // Using currentUser check is safer to avoid errors.
+    if (!currentUser) {
+        const listEl = document.getElementById('templates-list');
+        listEl.innerHTML = '<li style="padding:15px; text-align:center; color:#888; font-size:0.8rem;">ТРЕБУЕТСЯ АВТОРИЗАЦИЯ</li>';
+        return;
+    }
+
+    const listEl = document.getElementById('templates-list');
+    listEl.innerHTML = '<li style="padding:10px; text-align:center; color:#666;">ЗАГРУЗКА...</li>';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('task_templates')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        templates = data || [];
+        renderTemplatesList();
+    } catch (err) {
+        console.error('Error fetching templates:', err);
+        listEl.innerHTML = '<li style="padding:10px; text-align:center; color:var(--red);">ОШИБКА ЗАГРУЗКИ</li>';
+    }
+}
+
+function renderTemplatesList() {
+    const listEl = document.getElementById('templates-list');
+    listEl.innerHTML = '';
+
+    if (templates.length === 0) {
+        listEl.innerHTML = '<li style="padding:15px; text-align:center; color:#555; font-size:0.8rem;">НЕТ СОХРАНЕННЫХ ШАБЛОНОВ</li>';
+        return;
+    }
+
+    templates.forEach(t => {
+        const li = document.createElement('li');
+        li.className = 'template-item';
+        li.onclick = (e) => {
+            // Prevent if clicked on delete button
+            if (e.target.closest('.delete-template-btn')) return;
+            handleTemplateSelect(t.text);
+        };
+
+        const span = document.createElement('span');
+        span.className = 'template-text';
+        span.innerText = t.text;
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-template-btn';
+        delBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+        delBtn.title = "Удалить шаблон";
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteTemplate(t.id);
+        };
+
+        li.appendChild(span);
+        li.appendChild(delBtn);
+        listEl.appendChild(li);
+    });
+}
+
+function handleTemplateSelect(text) {
+    const inp = document.getElementById('task-input');
+    inp.value = text;
+    // Highlight input to show it changed
+    inp.focus();
+
+    // Trigger input event to enable "+" button if needed (though existing code might not rely on it, 
+    // but checkSaveTemplateBtn needs it)
+    checkSaveTemplateBtn();
+
+    // Close menu
+    toggleTemplatesMenu();
+}
+
+async function saveCurrentAsTemplate() {
+    const inp = document.getElementById('task-input');
+    const text = inp.value.trim();
+    if (!text) return;
+
+    if (!currentUser) {
+        showToast("НУЖНА АВТОРИЗАЦИЯ");
+        return;
+    }
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('task_templates')
+            .insert([{ text: text, user_id: currentUser.id }])
+            .select();
+
+        if (error) throw error;
+
+        showToast("ШАБЛОН СОХРАНЕН");
+
+        // Refresh list
+        await fetchTemplates();
+
+    } catch (err) {
+        console.error('Error saving template:', err);
+        showToast("ОШИБКА СОХРАНЕНИЯ");
+    }
+}
+
+async function deleteTemplate(id) {
+    if (!confirm("УДАЛИТЬ ШАБЛОН?")) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('task_templates')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        // Refresh list locally for speed
+        templates = templates.filter(t => t.id !== id);
+        renderTemplatesList();
+
+    } catch (err) {
+        console.error('Error deleting template:', err);
+        showToast("ОШИБКА УДАЛЕНИЯ");
+    }
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('templates-menu');
+    const btn = document.getElementById('templates-toggle');
+    if (!menu || !btn) return;
+
+    if (!menu.classList.contains('hidden') &&
+        !menu.contains(e.target) &&
+        !btn.contains(e.target)) {
+
+        menu.classList.add('hidden');
+        btn.classList.remove('active');
+    }
+});
+
 initializeApp();

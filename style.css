@@ -601,8 +601,8 @@ body.chrono-mode .control-box {
     color: #fff;
     font-size: 1.2rem;
     padding: 15px;
-    padding-right: 120px;
-    /* Увеличено для двух кнопок */
+    padding-right: 170px;
+    /* Увеличено для трех кнопок */
     outline: none;
 }
 
@@ -618,7 +618,8 @@ body.chrono-mode .control-box {
     justify-content: center;
     transition: all 0.3s ease;
     position: absolute;
-    right: 60px;
+    right: 110px;
+    /* Слева от кнопки шаблонов */
     /* Слева от кнопки + */
     top: 0;
     height: 100%;
@@ -693,8 +694,167 @@ body.chrono-mode .control-box {
 }
 
 .add-btn:active {
-    background: var(--red);
     color: #000;
+}
+
+/* Кнопка шаблонов */
+.templates-btn {
+    width: 50px;
+    background: transparent;
+    border: 1px solid var(--dark-red);
+    color: #888;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: absolute;
+    right: 60px;
+    /* Между prepend и add */
+    top: 0;
+    height: 100%;
+}
+
+.templates-btn:hover,
+.templates-btn.active {
+    border-color: var(--red);
+    color: var(--red);
+    box-shadow: 0 0 10px var(--red) inset, 0 0 15px rgba(255, 0, 0, 0.3);
+}
+
+.templates-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+/* МЕНЮ ШАБЛОНОВ */
+.templates-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: rgba(10, 0, 0, 0.95);
+    border: 2px solid var(--red);
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    max-height: 400px;
+    overflow-y: auto;
+    transform-origin: top;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 1;
+    transform: scaleY(1);
+    border-radius: 4px;
+}
+
+.templates-menu.hidden {
+    opacity: 0;
+    transform: scaleY(0);
+    pointer-events: none;
+}
+
+.templates-header {
+    padding: 10px;
+    border-bottom: 1px solid var(--dark-red);
+    background: rgba(40, 0, 0, 0.3);
+}
+
+.save-template-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed var(--red);
+    color: var(--red);
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.save-template-btn:hover {
+    background: rgba(255, 0, 0, 0.2);
+    box-shadow: 0 0 10px var(--red);
+    text-shadow: 0 0 5px var(--red);
+}
+
+.save-template-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    border-color: #444;
+    color: #444;
+    box-shadow: none !important;
+    text-shadow: none;
+}
+
+.templates-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.template-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #333;
+    color: #ddd;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 1rem;
+    font-family: 'Courier New', monospace;
+}
+
+.template-item:hover {
+    background: rgba(255, 0, 0, 0.15);
+    color: #fff;
+    padding-left: 20px;
+    /* Slight movement effect */
+    border-left: 3px solid var(--red);
+}
+
+.template-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 10px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.delete-template-btn {
+    background: transparent;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    padding: 5px;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-template-btn:hover {
+    color: var(--red);
+    transform: scale(1.2);
+    text-shadow: 0 0 5px var(--red);
+}
+
+.delete-template-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
 }
 
 .new-task-colors {
