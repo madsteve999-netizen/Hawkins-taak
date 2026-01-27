@@ -105,46 +105,53 @@ async function retryConnection() {
 // ========== MAGIC MIDNIGHT: AUTO-ROTATION ALGORITHM ==========
 /**
  * Проверяет дату последнего запуска и выполняет ротацию задач при наступлении новых суток
+ * Алгоритм "Midnight Magic" (Simplified)
  */
 function checkAndRotateTasks() {
     try {
-        const ROTATION_KEY = 'last_rotation_date';
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Сброс времени до начала дня
+        const ROTATION_KEY = 'midnight_magic_last_date'; // New key for the new logic
+
+        // Получаем текущую дату в формате YYYY-MM-DD (локальное время)
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+
+        console.log('🔮 MAGIC MIDNIGHT CHECK 🔮');
+        console.log('Current Device Date:', todayStr);
 
         const lastRotationStr = localStorage.getItem(ROTATION_KEY);
+        console.log('Last Saved Date:', lastRotationStr || 'NEVER');
 
         if (!lastRotationStr) {
-            // Первый запуск - сохраняем текущую дату
-            localStorage.setItem(ROTATION_KEY, today.toISOString());
-            console.log('First run - rotation date set to:', today.toISOString());
+            // Первый запуск новой логики - сохраняем и выходим
+            console.log('First run (or migration). Setting baseline date.');
+            localStorage.setItem(ROTATION_KEY, todayStr);
             return;
         }
 
-        const lastRotation = new Date(lastRotationStr);
-        lastRotation.setHours(0, 0, 0, 0);
+        // ПРОВЕРКА: Если строки не совпадают - значит, наступил новый день
+        if (todayStr !== lastRotationStr) {
+            console.log('>>> MIDNIGHT CROSSED! Initiating Rotation... <<<');
 
-        // Вычисляем разницу в днях
-        const daysDiff = Math.floor((today - lastRotation) / (1000 * 60 * 60 * 24));
-
-        if (daysDiff > 0) {
-            console.log(`Days passed since last rotation: ${daysDiff}. Rotating tasks...`);
-
-            // Выполняем ротацию
+            // 1. Выполняем ротацию
             rotateTasks();
 
-            // Обновляем дату последней ротации
-            localStorage.setItem(ROTATION_KEY, today.toISOString());
+            // 2. СРАЗУ обновляем дату, чтобы не сработало повторно
+            localStorage.setItem(ROTATION_KEY, todayStr);
+            console.log('Date updated to:', todayStr);
 
-            // Сохраняем изменения
+            // 3. Сохраняем состояние задач в LocalStorage / Supabase
             save();
 
-            console.log('Task rotation completed. New rotation date:', today.toISOString());
+            showToast('♻️ ЗАДАЧИ ПЕРЕНЕСЕНЫ НА СЕГОДНЯ');
         } else {
-            console.log('No rotation needed. Last rotation was today.');
+            console.log('Same day. No rotation needed.');
         }
+
     } catch (error) {
-        console.error('Error in checkAndRotateTasks:', error);
+        console.error('CRITICAL ERROR in checkAndRotateTasks:', error);
     }
 }
 
