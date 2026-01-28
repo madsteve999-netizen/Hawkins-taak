@@ -356,11 +356,11 @@ const STATIONS = {
         "https://hawkins-task.vercel.app/Cutting_Crew_-_Died_In_Your_Arms_48076414.mp3"
     ],
     LAB: [
-        'https://github.com/madsteve999-netizen/Hawkins-task/releases/download/music-v1/30_min_focus_Dreamlight.mp3',
-        'https://github.com/madsteve999-netizen/Hawkins-task/releases/download/music-v1/30_min_focus_Groovy.mp3',
-        'https://github.com/madsteve999-netizen/Hawkins-task/releases/download/music-v1/30_min_focus_Jurisprudence.mp3',
-        'https://github.com/madsteve999-netizen/Hawkins-task/releases/download/music-v1/Coding_Music.mp3',
-        'https://github.com/madsteve999-netizen/Hawkins-task/releases/download/music-v1/Hyperfocus.mp3'
+        '/lab-music/30_min_focus_Dreamlight.mp3',
+        '/lab-music/30_min_focus_Groovy.mp3',
+        '/lab-music/30_min_focus_Jurisprudence.mp3',
+        '/lab-music/Coding_Music.mp3',
+        '/lab-music/Hyperfocus.mp3'
     ]
 };
 
