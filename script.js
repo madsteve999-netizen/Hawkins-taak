@@ -218,7 +218,8 @@ async function initializeApp() {
         // This ensures tasks are loaded before rotation algorithm runs
 
         // Check and rotate tasks if needed (MAGIC MIDNIGHT algorithm)
-        checkAndRotateTasks();
+        // DISABLED BY USER REQUEST due to sync issues (2026-01-28)
+        // checkAndRotateTasks();
 
         // Render UI AFTER rotation
         render();
