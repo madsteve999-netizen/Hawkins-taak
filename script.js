@@ -368,6 +368,16 @@ function initRadioMode() {
     if (!STATIONS[currentRadioMode.toUpperCase()]) {
         currentRadioMode = 'fm';
     }
+
+    // FIX: Explicitly set audio source for the current mode on init
+    const audio = document.getElementById("audio");
+    const playlist = STATIONS[currentRadioMode.toUpperCase()];
+    if (audio && playlist && playlist[0]) {
+        audio.src = playlist[0];
+        // Note: We don't call load() or play() here to prevent auto-play, 
+        // but src must be ready for the user to click Play.
+    }
+
     setRadioMode(currentRadioMode, false);
     // Force panel to be hidden on init
     const content = document.getElementById('radio-playlist-container');
@@ -1210,7 +1220,7 @@ function initApp() {
     initDrag();
     resetTime();
     const au = document.getElementById('audio');
-    au.src = songs[curCh];
+    // au.src = songs[curCh]; // DISABLED: This was forcing FM track on init. Logic moved to initRadioMode.
     au.volume = 0.5;
 
     // Initialize Supabase client first
