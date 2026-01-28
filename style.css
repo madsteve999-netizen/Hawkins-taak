@@ -1171,6 +1171,29 @@ ul {
     background: rgba(255, 0, 0, 0.2);
 }
 
+/* Специальные стили для пункта ВЗЛОМ */
+.menu-item.hack-item {
+    border-color: var(--red);
+    background: transparent;
+    color: #ccc;
+}
+
+.menu-item.hack-item:hover {
+    border-color: var(--red);
+    color: var(--red);
+    background: rgba(255, 0, 0, 0.1);
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+    text-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+}
+
+.menu-item.hack-item .menu-icon {
+    color: var(--red);
+}
+
+.menu-item.hack-item:hover .menu-icon {
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+}
+
 .menu-icon {
     font-size: 1.2rem;
     min-width: 20px;
@@ -1707,37 +1730,74 @@ body.void-mode #completed-section {
 /* --- VOID MODE --- */
 /* В режиме VOID приглушаем все задачи кроме первой из списка СЕГОДНЯ */
 
-/* Приглушаем ВСЕ задачи в режиме VOID */
+/* === VOID MODE STYLES === */
+
+/* Скрываем ВСЕ задачи в режиме VOID */
 body.void-mode .task-item {
-    opacity: 0;
-    filter: blur(2px);
-    transform: scale(0.95);
+    opacity: 0 !important;
+    filter: blur(2px) !important;
+    transform: scale(0.95) !important;
     transition: all 0.5s ease;
 }
 
-/* Выделяем ПЕРВУЮ задачу из списка СЕГОДНЯ */
-body.void-mode #today-list li:first-child {
+/* Показываем ПЕРВУЮ задачу при обычном помодоро */
+body.void-mode:not(.hack-mode) #today-list .task-item:first-child {
     opacity: 1 !important;
     filter: none !important;
     transform: scale(1.15) !important;
-    font-size: 1.3rem;
-    box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
-    border-left-width: 6px;
-    transition: all 0.5s ease;
-    margin-bottom: 30px;
-    justify-content: center;
-    padding-right: 15px;
-    align-items: center;
-    position: relative;
+    box-shadow: 0 0 30px rgba(255, 0, 0, 0.5) !important;
+    border-left-width: 6px !important;
+    margin-bottom: 30px !important;
     display: flex !important;
+    /* FIX: Компенсация масштаба 1.15 чтобы не вылезало по ширине (100/1.15 = ~87%) */
+    width: 87% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
 }
 
-body.void-mode #today-list li:first-child .task-text {
-    font-size: 1.3em;
-    text-shadow: 3px 3px 0 #000, 0 0 15px rgba(255, 0, 0, 0.3);
-    flex: 0 1 auto;
-    text-align: center;
-    max-width: fit-content;
+/* МАКСИМАЛЬНЫЙ ПРИОРИТЕТ: Показываем выбранную задачу при взломе */
+body.void-mode.hack-mode .hack-target.task-item,
+body.hack-mode.void-mode .hack-target.task-item,
+.hack-mode .hack-target.task-item,
+body.void-mode .hack-target.task-item.hack-target {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: scale(1.15) !important;
+    box-shadow: 0 0 30px rgba(255, 0, 0, 0.5) !important;
+    border-left-width: 6px !important;
+    margin-bottom: 30px !important;
+    display: flex !important;
+    visibility: visible !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+    /* FIX: Компенсация масштаба 1.15 чтобы не вылезало по ширине */
+    width: 87% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* FIX: Полностью скрываем неактивные задачи в режиме взлома, чтобы они не занимали место */
+body.hack-mode .task-item:not(.hack-target) {
+    display: none !important;
+}
+
+/* Стили текста для обычного помодоро */
+body.void-mode:not(.hack-mode) #today-list .task-item:first-child .task-text {
+    font-size: 1.3em !important;
+    text-shadow: 3px 3px 0 #000, 0 0 15px rgba(255, 0, 0, 0.3) !important;
+    text-align: center !important;
+}
+
+/* МАКСИМАЛЬНЫЙ ПРИОРИТЕТ: Стили текста для взлома */
+body.void-mode.hack-mode .hack-target.task-item .task-text,
+body.hack-mode.void-mode .hack-target.task-item .task-text,
+.hack-mode .hack-target.task-item .task-text,
+body.void-mode .hack-target.task-item.hack-target .task-text {
+    font-size: 1.3em !important;
+    text-shadow: 3px 3px 0 #000, 0 0 15px rgba(255, 0, 0, 0.3) !important;
+    text-align: center !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 /* Центрируем workspace в режиме void */
@@ -1766,24 +1826,28 @@ body.void-mode .timer-digits {
 
 /* --- ДОПОЛНЕНИЕ ДЛЯ VOID РЕЖИМА (ЦЕНТРОВКА) --- */
 
-/* 1. Скрываем кнопки (карандаш и крестик) у активной задачи */
-body.void-mode #today-list li:first-child .btn-action,
-body.void-mode #today-list li:first-child .btn-menu,
-body.void-mode #today-list li:first-child .task-age {
+/* Скрываем кнопки у активных задач в VOID режиме */
+body.void-mode:not(.hack-mode) #today-list .task-item:first-child .btn-action,
+body.void-mode:not(.hack-mode) #today-list .task-item:first-child .btn-menu,
+body.void-mode:not(.hack-mode) #today-list .task-item:first-child .task-age,
+body.void-mode.hack-mode .hack-target.task-item .btn-action,
+body.void-mode.hack-mode .hack-target.task-item .btn-menu,
+body.void-mode.hack-mode .hack-target.task-item .task-age,
+.hack-mode .hack-target.task-item .btn-action,
+.hack-mode .hack-target.task-item .btn-menu,
+.hack-mode .hack-target.task-item .task-age {
     display: none !important;
 }
 
-/* 2. Force Checkbox Visibility and Style */
-body.void-mode #today-list li:first-child .checkbox {
+/* Стили чекбокса для активных задач в VOID режиме */
+body.void-mode:not(.hack-mode) #today-list .task-item:first-child .checkbox,
+body.void-mode.hack-mode .hack-target.task-item .checkbox,
+.hack-mode .hack-target.task-item .checkbox {
     display: flex !important;
-    margin-right: 25px;
-    transform: scale(1.5);
-    border-color: var(--red);
-    box-shadow: 0 0 10px var(--red);
-    flex-shrink: 0;
-    width: 26px;
-    min-width: 26px;
-    margin-left: 12px;
+    margin-right: 25px !important;
+    transform: scale(1.5) !important;
+    border-color: var(--red) !important;
+    box-shadow: 0 0 10px var(--red) !important;
 }
 
 /* 3. Скрываем остальные списки в режиме VOID */
@@ -1792,6 +1856,11 @@ body.void-mode #after-tomorrow-list,
 body.void-mode #deferred-section,
 body.void-mode #completed-section {
     display: none !important;
+}
+
+/* FIX: Показываем список если в нем есть активная задача взлома */
+body.void-mode ul.hack-list-active {
+    display: block !important;
 }
 
 /* 4. Скрываем заголовки других списков */

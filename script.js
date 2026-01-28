@@ -287,6 +287,7 @@ let currentFontFamily = "'Courier New', Courier, monospace";
 let taskToDeleteId = null; // Глобальная переменная для удаления
 let prependMode = false; // Режим добавления в начало списка
 let openMenuId = null; // Отслеживание открытого меню задачи
+let activeHackTaskId = null; // ID задачи в режиме ВЗЛОМ
 
 function loadTasks() {
     let data = [];
@@ -623,6 +624,13 @@ function stopTicking() {
 
     // DEACTIVATE THE VOID MODE
     document.body.classList.remove('void-mode');
+
+    // Убираем классы взлома при остановке таймера
+    document.body.classList.remove('hack-mode');
+    activeHackTaskId = null; // Сброс ID задачи взлома
+    document.querySelectorAll('.task-item').forEach(el => {
+        el.classList.remove('hack-target');
+    });
 
     const vecna = document.getElementById('vecna-sfx');
     vecna.pause(); vecna.currentTime = 0;
@@ -1766,6 +1774,12 @@ function render() {
     const def = document.getElementById('deferred-list');
     const com = document.getElementById('completed-list');
 
+    // FIX: Clear hack visibility classes
+    todayList.classList.remove('hack-list-active');
+    tomorrowList.classList.remove('hack-list-active');
+    def.classList.remove('hack-list-active');
+    com.classList.remove('hack-list-active');
+
     // PERFORMANCE: Use DocumentFragment instead of innerHTML in loop
     const todayFragment = document.createDocumentFragment();
     const tomorrowFragment = document.createDocumentFragment();
@@ -1888,6 +1902,12 @@ function render() {
         const li = document.createElement('li');
         const colorClass = t.color ? 'border-' + t.color : 'border-red';
         li.className = `task-item ${t.status === 'completed' ? 'completed' : ''} ${colorClass}`;
+
+        // Cохраняем класс hack-target при рендеринге
+        if (activeHackTaskId && String(t.id) === String(activeHackTaskId)) {
+            li.classList.add('hack-target');
+        }
+
         li.dataset.id = t.id;
 
         // Calculate task age for non-completed tasks
@@ -1926,6 +1946,10 @@ function render() {
                         <button class="menu-item" onclick="openEditModal('${taskIdStr}'); closeAllTaskMenus();" title="Редактировать">
                             <span class="menu-icon">✎</span>
                             <span class="menu-label">РЕДАКТИРОВАТЬ</span>
+                        </button>
+                        <button class="menu-item hack-item" onclick="startHackProtocol('${taskIdStr}'); closeAllTaskMenus();" title="Взлом - 5 минут фокуса">
+                            <span class="menu-icon">⚡</span>
+                            <span class="menu-label">ВЗЛОМ</span>
                         </button>
                         <button class="menu-item" onclick="moveToDeferred('${taskIdStr}'); closeAllTaskMenus();" title="Отложить">
                             <span class="menu-icon">⏳</span>
@@ -2010,6 +2034,15 @@ function render() {
     tomorrowList.appendChild(tomorrowFragment);
     def.appendChild(defFragment);
     com.appendChild(comFragment);
+
+    // FIX: Ensure parent list of hacked task is visible
+    if (activeHackTaskId) {
+        const targetEl = document.querySelector(`.task-item[data-id="${activeHackTaskId}"]`);
+        if (targetEl) {
+            const parent = targetEl.closest('ul');
+            if (parent) parent.classList.add('hack-list-active');
+        }
+    }
 
     // Update task counters
     updateCounters();
@@ -2234,6 +2267,132 @@ function initDrag() {
 
 
 window.onload = initApp;
+
+// ========== HACK PROTOCOL FUNCTION ==========
+/**
+ * Запускает режим "ВЗЛОМ" - 5-минутная сессия глубокой фокусировки на выбранной задаче
+ * @param {string} taskId - ID задачи для фокусировки
+ */
+function startHackProtocol(taskId) {
+    console.log('🔥 HACK PROTOCOL INITIATED for task:', taskId);
+
+    // 1. Проигрываем звуковой эффект мгновенно
+    const hackAudio = new Audio('sound/Glitch-Light-01.mp3');
+    hackAudio.volume = 0.7;
+    hackAudio.play().catch(e => console.warn('Hack audio failed:', e));
+
+    // 2. Находим задачу (НЕ перемещаем её, оставляем на месте)
+    const task = tasks.find(t => String(t.id) === String(taskId));
+    if (!task) {
+        console.error('Task not found for hack protocol:', taskId);
+        return;
+    }
+
+    // Убеждаемся, что задача активна (но НЕ меняем её позицию)
+    task.status = 'active';
+    if (task.container_type === 'deferred') {
+        task.container_type = 'today'; // Только если была в отложенных
+    }
+
+    // 3. Сохраняем состояние таймера для возможного восстановления
+    saveTimerState();
+
+    // 4. Принудительно устанавливаем таймер на 5:00 и переключаемся в режим работы
+    stopTicking(); // Останавливаем текущий таймер если он работает
+    activeHackTaskId = taskId; // Запоминаем ID задачи ПОСЛЕ сброса
+    isWorkSession = true;
+    timeLeft = 5 * 60; // 5 минут в секундах
+    updateDisplay();
+    updateCycleStatus();
+
+    // 5. Сохраняем и рендерим
+    save();
+    render();
+
+    // 6. КРИТИЧЕСКИ ВАЖНО: Добавляем классы ДО запуска таймера
+    // Добавляем специальный флаг в body для отличия от обычного помодоро
+    document.body.classList.add('hack-mode');
+
+    // Убираем предыдущие метки
+    document.querySelectorAll('.task-item').forEach(el => {
+        el.classList.remove('hack-target');
+    });
+
+    // Помечаем выбранную задачу СРАЗУ после рендеринга
+    setTimeout(() => {
+        const targetTaskElement = document.querySelector(`li[data-id="${taskId}"]`);
+        if (targetTaskElement) {
+            targetTaskElement.classList.add('hack-target');
+            console.log('✅ HACK PROTOCOL: Target task selected, classes:', targetTaskElement.className);
+
+            // ЗАПУСКАЕМ ТАЙМЕР ТОЛЬКО ПОСЛЕ того как класс добавлен
+            setTimeout(() => {
+                const startBtn = document.getElementById('t-start-btn');
+                startBtn.innerText = "ПАУЗА";
+                startBtn.classList.add('active');
+
+                // Подготавливаем аудио контекст
+                ensureAudioContext();
+
+                // Запускаем таймер (это добавит void-mode)
+                startTimer();
+            }, 50);
+        } else {
+            console.error('❌ HACK PROTOCOL: Could not find target task');
+        }
+    }, 50);
+
+    // 7. Синхронизируем с облаком если залогинен (только если была перемещена из отложенных)
+    if (currentUser && task.container_type === 'today') {
+        updateTaskInCloud(taskId, { status: task.status, container_type: task.container_type });
+    }
+
+    // 8. Показываем уведомление
+    showToast('🔥 HACK PROTOCOL АКТИВИРОВАН - 5 МИНУТ ФОКУСА');
+
+    console.log('✅ Hack protocol started successfully');
+}
+
+// Переопределяем handleTimerComplete для обработки завершения HACK PROTOCOL
+const originalHandleTimerComplete = handleTimerComplete;
+
+function handleTimerComplete() {
+    // Проверяем, был ли это HACK PROTOCOL (5 минут работы)
+    const wasHackProtocol = isWorkSession && timeLeft === 0 &&
+        (timerEndTime - Date.now() + 5 * 60 * 1000) < 1000; // Примерно 5 минут прошло
+
+    if (wasHackProtocol) {
+        console.log('🎯 HACK PROTOCOL COMPLETED');
+
+        // Останавливаем таймер
+        stopTicking();
+
+        // Убираем специальные классы взлома
+        document.body.classList.remove('hack-mode');
+        document.querySelectorAll('.task-item').forEach(el => {
+            el.classList.remove('hack-target');
+        });
+
+        // Возвращаемся в исходное состояние без модального окна
+        // Сбрасываем таймер на стандартные настройки
+        isWorkSession = true;
+        currentCycle = 1;
+        resetTime();
+
+        // Показываем уведомление о завершении
+        showToast('✅ HACK PROTOCOL ЗАВЕРШЕН - МИССИЯ ВЫПОЛНЕНА');
+
+        // Воспроизводим завершающий звук
+        const completeAudio = new Audio('sound/Glitch-Light-01.mp3');
+        completeAudio.volume = 0.5;
+        completeAudio.play().catch(e => console.warn('Complete audio failed:', e));
+
+        return; // Не вызываем оригинальную функцию
+    }
+
+    // Если это не HACK PROTOCOL, вызываем оригинальную функцию
+    originalHandleTimerComplete();
+}
 
 // ========== SUPABASE AUTH FUNCTIONS ==========
 async function initAuth() {
