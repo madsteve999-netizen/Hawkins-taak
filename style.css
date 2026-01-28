@@ -1971,3 +1971,8 @@ body.void-mode .list-title:not(:first-of-type) {
 .sep-val {
     color: #bbb;
 }
+
+.sep-val.zero {
+    color: #555;
+    opacity: 0.5;
+}
