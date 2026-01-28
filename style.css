@@ -1012,6 +1012,21 @@ ul {
     color: #fff;
 }
 
+
+.btn-del {
+    background: none;
+    border: none;
+    color: #555;
+    font-size: 1.2rem;
+    padding: 5px 10px;
+    cursor: pointer;
+    z-index: 2;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .btn-del:hover {
     color: var(--red);
 }
@@ -1837,4 +1852,122 @@ body.void-mode .list-title:not(:first-of-type) {
         transform: none;
         /* Reset center transform for absolute positioning */
     }
+}
+
+/* --- STREAM MODE STYLES --- */
+.add-separator-btn {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-size: 0.8rem;
+    font-weight: bold;
+    padding: 2px 8px;
+    margin-left: 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+}
+
+.add-separator-btn:hover {
+    background: rgba(255, 0, 0, 0.2);
+    box-shadow: 0 0 10px var(--red);
+}
+
+.separator-task {
+    text-align: center;
+    padding: 15px 5px;
+    margin: 20px 0 10px 0;
+    color: var(--red);
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 2px dashed #444;
+    text-shadow: 0 0 5px #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    position: relative;
+}
+
+
+
+.separator-controls {
+    position: absolute;
+    right: 0;
+    display: flex;
+    align-items: center;
+}
+
+.separator-lock-btn,
+.separator-delete-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    transition: 0.2s;
+    display: flex;
+    /* Fix for SVG centering */
+    align-items: center;
+    justify-content: center;
+}
+
+/* Remove absolute positioning from delete button as it's now in flex container */
+.separator-delete-btn {
+    position: static;
+    color: #444;
+    font-size: 1.2rem;
+}
+
+.separator-lock-btn:hover {
+    transform: scale(1.1);
+}
+
+.separator-delete-btn:hover {
+    color: var(--red);
+    transform: scale(1.1);
+}
+
+.separator-task.locked {
+    opacity: 0.7;
+    cursor: not-allowed;
+    border-bottom: 2px solid #555;
+    /* Solid border to show "hard" lock */
+}
+
+/* Optional: Hide delete button if locked? User didn't ask, but safe to keep visible */
+.separator-task.locked .separator-delete-btn {
+    opacity: 0.3;
+    pointer-events: none;
+    /* Prevent deletion if locked */
+}
+
+
+.separator-counters {
+    font-size: 0.8rem;
+    display: flex;
+    gap: 5px;
+    opacity: 0.8;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+.sep-count {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.sep-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.sep-val {
+    color: #bbb;
 }

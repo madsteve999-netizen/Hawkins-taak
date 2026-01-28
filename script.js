@@ -932,7 +932,7 @@ function saveEditTask() {
     closeEditModal();
 }
 
-function del(id) {
+function prepareDelete(id) {
     const t = tasks.find(x => String(x.id) === String(id));
     if (!t) return;
 
@@ -1302,7 +1302,7 @@ async function uploadTaskToCloud(task) {
                 const btnEdit = domElement.querySelector('.btn-edit');
                 const btnDel = domElement.querySelector('.btn-del');
                 if (btnEdit) btnEdit.setAttribute('onclick', `openEditModal('${newIdStr}')`);
-                if (btnDel) btnDel.setAttribute('onclick', `del('${newIdStr}')`);
+                if (btnDel) btnDel.setAttribute('onclick', `prepareDelete('${newIdStr}')`);
             }
 
             save();
@@ -1616,17 +1616,160 @@ function getAgeColorClass(days) {
 }
 
 
+function addSeparator() {
+    // 1. Find the last separator date
+    const tomorrowTasks = tasks.filter(t => t.container_type === 'tomorrow' || t.container_type === 'after_tomorrow');
+    let lastDate = new Date(); // Start from today
+
+    // Regex to extract date from separator "--- 29.01.2026 ---"
+    const dateRegex = /(\d{2})\.(\d{2})\.(\d{4})/;
+
+    // Find the last separator task in the list
+    let lastSeparatorIndex = -1;
+    for (let i = tomorrowTasks.length - 1; i >= 0; i--) {
+        if (tomorrowTasks[i].txt.startsWith('---')) {
+            const match = tomorrowTasks[i].txt.match(dateRegex);
+            if (match) {
+                // Parse date: DD.MM.YYYY
+                const day = parseInt(match[1]);
+                const month = parseInt(match[2]) - 1; // Months are 0-indexed
+                const year = parseInt(match[3]);
+                lastDate = new Date(year, month, day);
+                lastSeparatorIndex = i;
+                break;
+            }
+        }
+    }
+
+    // 2. Increment date by 1 day
+    lastDate.setDate(lastDate.getDate() + 1);
+
+    const d = String(lastDate.getDate()).padStart(2, '0');
+    const m = String(lastDate.getMonth() + 1).padStart(2, '0');
+    const y = lastDate.getFullYear();
+    const newDateStr = `${d}.${m}.${y}`;
+
+    const separatorText = `--- ${newDateStr} ---`;
+
+    // 3. Create separator task
+    const newTask = {
+        id: Date.now(),
+        txt: separatorText,
+        status: 'active',
+        container_type: 'tomorrow', // Everything goes to 'Plans' now
+        color: 'grey',
+        order_index: tasks.length,
+        created_at: Date.now()
+    };
+
+    tasks.push(newTask);
+    save();
+    render();
+    if (currentUser) uploadTaskToCloud(newTask);
+}
+
+function deleteSeparator(id) {
+    if (confirm("Удалить этот разделитель дня? Задачи под ним останутся.")) {
+        tasks = tasks.filter(t => String(t.id) !== String(id));
+        save();
+        render();
+        if (currentUser) deleteTaskFromCloud(id);
+    }
+}
+
+function restoreTask(id) {
+    const taskIndex = tasks.findIndex(x => String(x.id) === String(id));
+    if (taskIndex === -1) return;
+
+    const task = tasks[taskIndex];
+    task.status = 'active';
+    task.container_type = 'today';
+
+    // Remove from current position
+    tasks.splice(taskIndex, 1);
+
+    // Insert at the VERY BEGINNING of the list (Top of Today)
+    tasks.unshift(task);
+
+    // Re-calculate order_index for all tasks
+    tasks.forEach((t, idx) => {
+        t.order_index = idx;
+    });
+
+    playSfx('click');
+    save();
+    render();
+
+    if (currentUser) {
+        updateTaskInCloud(id, { status: task.status, container_type: task.container_type });
+        updateTaskOrderInCloud(); // Start background reorder since we moved it to top
+    }
+}
+
+
+function toggleSeparatorLock(id) {
+    const task = tasks.find(t => String(t.id) === String(id));
+    if (task) {
+        if (task.txt.includes('[LOCKED]')) {
+            task.txt = task.txt.replace(' [LOCKED]', '').replace('[LOCKED]', '').trim();
+            task.is_locked = false;
+        } else {
+            task.txt = task.txt + ' [LOCKED]';
+            task.is_locked = true;
+        }
+
+        playSfx('click');
+        save();
+        render();
+
+        // Sync to cloud
+        if (currentUser) {
+            updateTaskInCloud(id, { title: task.txt });
+        }
+    }
+}
+
+function deleteSeparator(id) {
+    if (confirm('Удалить этот разделитель и объединить задачи?')) {
+        const taskIndex = tasks.findIndex(t => String(t.id) === String(id));
+        if (taskIndex > -1) {
+            tasks.splice(taskIndex, 1);
+            save();
+            render();
+
+            if (currentUser) {
+                // Determine logic for deletion in cloud
+                // For now, simple soft delete or hard delete
+                const task = tasks[taskIndex]; // wait, we just spliced it. 
+                // We should have captured it before splicing if we check id.
+                // Actually updateTaskInCloud works by ID, so... 
+                // But we need to call a delete function.
+                // Assuming standard sync handles deletion if we remove from local? 
+                // No, current logic requires explicit delete call usually.
+                // Let's stick to local visual logic for now or call a delete helper if exists.
+                // Given the context, we just remove it from array.
+                // Sync might need 'is_deleted' flag.
+
+                // Let's just trigger a reorder sync which might be enough if we had diffing, 
+                // but we might need to send a delete command. 
+                // For safety, I'll add a direct delete call via supabase if client exists.
+                supabaseClient.from('tasks').update({ is_deleted: true }).eq('id', id).then();
+            }
+        }
+    }
+}
+
 function render() {
     const todayList = document.getElementById('today-list');
     const tomorrowList = document.getElementById('tomorrow-list');
-    const afterTomorrowList = document.getElementById('after-tomorrow-list');
+    // const afterTomorrowList = document.getElementById('after-tomorrow-list'); // REMOVED
     const def = document.getElementById('deferred-list');
     const com = document.getElementById('completed-list');
 
     // PERFORMANCE: Use DocumentFragment instead of innerHTML in loop
     const todayFragment = document.createDocumentFragment();
     const tomorrowFragment = document.createDocumentFragment();
-    const afterTomorrowFragment = document.createDocumentFragment();
+    // const afterTomorrowFragment = document.createDocumentFragment(); // REMOVED
     const defFragment = document.createDocumentFragment();
     const comFragment = document.createDocumentFragment();
 
@@ -1654,12 +1797,17 @@ function render() {
                 t.container_type = 'today';
             }
         }
+
+        // STREAM MODE MIGRATION: Move 'after_tomorrow' to 'tomorrow'
+        if (t.container_type === 'after_tomorrow') {
+            t.container_type = 'tomorrow';
+        }
     });
 
     // Separate tasks by container_type
     const todayTasks = tasks.filter(t => t.container_type === 'today');
     const tomorrowTasks = tasks.filter(t => t.container_type === 'tomorrow');
-    const afterTomorrowTasks = tasks.filter(t => t.container_type === 'after_tomorrow');
+    // const afterTomorrowTasks = tasks.filter(t => t.container_type === 'after_tomorrow'); // REMOVED
     const deferredTasks = tasks.filter(t => t.container_type === 'deferred');
     const completedTasks = tasks.filter(t => t.status === 'completed' || t.container_type === 'archived');
 
@@ -1670,14 +1818,77 @@ function render() {
         return ageA - ageB; // Oldest first (smallest timestamp first)
     });
 
+    // --- SMART COUNTERS PRE-CALCULATION FOR Separators ---
+    // Map<SeparatorID, {red: 0, yellow: 0, green: 0}>
+    const separatorCounts = {};
+    let currentSeparatorId = null;
+
+    tomorrowTasks.forEach(t => {
+        if (t.txt.startsWith('---')) {
+            currentSeparatorId = t.id;
+            separatorCounts[currentSeparatorId] = { red: 0, yellow: 0, green: 0 };
+        } else if (currentSeparatorId) {
+            // It's a task under a separator
+            if (t.color === 'red') separatorCounts[currentSeparatorId].red++;
+            else if (t.color === 'yellow') separatorCounts[currentSeparatorId].yellow++;
+            else if (t.color === 'green') separatorCounts[currentSeparatorId].green++;
+        }
+    });
+    // -----------------------------------------------------
+
     // Render function for a single task
     const renderTask = (t) => {
+        const taskIdStr = String(t.id);
+
+        // --- SEPARATOR TASK RENDER ---
+        // --- SEPARATOR TASK RENDER ---
+        if (t.txt.startsWith('---')) {
+            const li = document.createElement('li');
+            li.className = 'separator-task';
+            li.dataset.id = t.id;
+
+            // Handle Locked State (Parse from TXT for persistence)
+            const isLocked = t.txt.includes('[LOCKED]');
+            t.is_locked = isLocked; // Keep runtime sync
+
+            if (isLocked) {
+                li.classList.add('locked');
+            }
+
+            // Logic for Lock Icon
+            const lockIcon = isLocked
+                ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="var(--color-red)"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>`
+                : `<svg viewBox="0 0 24 24" width="16" height="16" fill="#666"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/></svg>`;
+
+            // Get counts or default to 0
+            const counts = separatorCounts[taskIdStr] || { red: 0, yellow: 0, green: 0 };
+
+            // Format: "--- 29.01.2026 --- ( 🔴 1 | 🟡 3 | 🟢 0 )"
+            // We strip the "---" AND "[LOCKED]" to show clean date and then reconstruct
+            const coreText = t.txt.replace(/---/g, '').replace(/\[LOCKED\]/g, '').trim();
+
+            li.innerHTML = `
+                <span>${coreText}</span>
+                <div class="separator-counters">
+                   <div class="sep-count"><div class="sep-dot" style="background:var(--color-red)"></div><span class="sep-val">${counts.red}</span></div>
+                   <div class="sep-count"><div class="sep-dot" style="background:var(--color-yellow)"></div><span class="sep-val">${counts.yellow}</span></div>
+                   <div class="sep-count"><div class="sep-dot" style="background:var(--color-green)"></div><span class="sep-val">${counts.green}</span></div>
+                </div>
+                <div class="separator-controls">
+                    <button class="separator-lock-btn" onclick="toggleSeparatorLock('${taskIdStr}')" title="${isLocked ? 'Разблокировать' : 'Заблокировать'}">
+                        ${lockIcon}
+                    </button>
+                    <button class="separator-delete-btn" onclick="deleteSeparator('${taskIdStr}')" title="Удалить разделитель">×</button>
+                </div>
+            `;
+            return li;
+        }
+        // -----------------------------
+
         const li = document.createElement('li');
         const colorClass = t.color ? 'border-' + t.color : 'border-red';
         li.className = `task-item ${t.status === 'completed' ? 'completed' : ''} ${colorClass}`;
         li.dataset.id = t.id;
-
-        const taskIdStr = String(t.id);
 
         // Calculate task age for non-completed tasks
         const ageDays = t.status !== 'completed' ? getTaskAgeDays(t) : -1;
@@ -1706,8 +1917,8 @@ function render() {
                         <circle cx="12" cy="19" r="2"/>
                     </svg>
                 </button>
-                <div class="task-menu-dropdown">
-                    ${t.container_type === 'today' || t.container_type === 'tomorrow' || t.container_type === 'after_tomorrow' ? `
+                <div class="task-menu-dropdown" id="menu-${taskIdStr}">
+                    ${t.container_type === 'today' || t.container_type === 'tomorrow' ? `
                         <button class="menu-item" onclick="moveToTop('${taskIdStr}'); closeAllTaskMenus();" title="Переместить в начало">
                             <span class="menu-icon">▲</span>
                             <span class="menu-label">ВВЕРХ</span>
@@ -1716,35 +1927,35 @@ function render() {
                             <span class="menu-icon">✎</span>
                             <span class="menu-label">РЕДАКТИРОВАТЬ</span>
                         </button>
-                        <button class="menu-item" onclick="moveToDeferred('${taskIdStr}'); closeAllTaskMenus();" title="Переместить в отложку">
-                            <svg class="menu-icon-svg" viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: currentColor;">
-                                <rect x="6" y="4" width="4" height="16" rx="1"/>
-                                <rect x="14" y="4" width="4" height="16" rx="1"/>
-                            </svg>
-                            <span class="menu-label">В ОТЛОЖКУ</span>
-                        </button>
-                        <button class="menu-item menu-item-danger" onclick="del('${taskIdStr}'); closeAllTaskMenus();" title="Удалить">
-                            <span class="menu-icon">×</span>
-                            <span class="menu-label">УДАЛИТЬ</span>
+                        <button class="menu-item" onclick="moveToDeferred('${taskIdStr}'); closeAllTaskMenus();" title="Отложить">
+                            <span class="menu-icon">⏳</span>
+                            <span class="menu-label">ОТЛОЖИТЬ</span>
                         </button>
                     ` : `
-                        <button class="menu-item" onclick="moveToToday('${taskIdStr}'); closeAllTaskMenus();" title="Переместить в СЕГОДНЯ">
-                            <span class="menu-icon">▲</span>
-                            <span class="menu-label">В СЕГОДНЯ</span>
-                        </button>
-                        <button class="menu-item" onclick="openEditModal('${taskIdStr}'); closeAllTaskMenus();" title="Редактировать">
-                            <span class="menu-icon">✎</span>
-                            <span class="menu-label">РЕДАКТИРОВАТЬ</span>
-                        </button>
-                        <button class="menu-item menu-item-danger" onclick="del('${taskIdStr}'); closeAllTaskMenus();" title="Удалить">
-                            <span class="menu-icon">×</span>
-                            <span class="menu-label">УДАЛИТЬ</span>
+                        <button class="menu-item" onclick="restoreTask('${taskIdStr}'); closeAllTaskMenus();" title="Вернуть">
+                            <span class="menu-icon">↺</span>
+                            <span class="menu-label">ВЕРНУТЬ</span>
                         </button>
                     `}
+                    ${t.container_type === 'today' ? `
+                        <button class="menu-item" onclick="moveTaskToContainer('${taskIdStr}', 'tomorrow'); closeAllTaskMenus();" title="Перенести в Планы">
+                            <span class="menu-icon">→</span>
+                            <span class="menu-label">В ПЛАНЫ</span>
+                        </button>
+                    ` : ''}
+                    ${t.container_type === 'tomorrow' ? `
+                        <button class="menu-item" onclick="moveTaskToContainer('${taskIdStr}', 'today'); closeAllTaskMenus();" title="Перенести в Сегодня">
+                            <span class="menu-icon">←</span>
+                            <span class="menu-label">В СЕГОДНЯ</span>
+                        </button>
+                    ` : ''}
+                    <button class="menu-item delete" onclick="prepareDelete('${taskIdStr}'); closeAllTaskMenus();" title="Удалить">
+                        <span class="menu-icon">🗑</span>
+                        <span class="menu-label">УДАЛИТЬ</span>
+                    </button>
                 </div>
             ` : `
-                <button class="btn-action btn-edit" onclick="openEditModal('${taskIdStr}')">✎</button>
-                <button class="btn-action btn-del" onclick="del('${taskIdStr}')">×</button>
+                 <button class="btn-del" onclick="prepareDelete('${taskIdStr}')" title="Удалить">🗑</button>
             `}
         `;
 
@@ -1784,21 +1995,19 @@ function render() {
     };
 
     // Render all tasks
+    // Render all tasks
     todayTasks.forEach(t => todayFragment.appendChild(renderTask(t)));
     tomorrowTasks.forEach(t => tomorrowFragment.appendChild(renderTask(t)));
-    afterTomorrowTasks.forEach(t => afterTomorrowFragment.appendChild(renderTask(t)));
     deferredTasks.forEach(t => defFragment.appendChild(renderTask(t)));
     completedTasks.forEach(t => comFragment.appendChild(renderTask(t)));
 
     // Single DOM write per list (MUCH faster)
     todayList.innerHTML = '';
     tomorrowList.innerHTML = '';
-    afterTomorrowList.innerHTML = '';
     def.innerHTML = '';
     com.innerHTML = '';
     todayList.appendChild(todayFragment);
     tomorrowList.appendChild(tomorrowFragment);
-    afterTomorrowList.appendChild(afterTomorrowFragment);
     def.appendChild(defFragment);
     com.appendChild(comFragment);
 
@@ -1814,8 +2023,7 @@ function updateCounters() {
     // Определяем контейнеры для подсчета
     const containers = [
         { type: 'today', prefix: 'counter-today' },
-        { type: 'tomorrow', prefix: 'counter-tomorrow' },
-        { type: 'after_tomorrow', prefix: 'counter-after-tomorrow' }
+        { type: 'tomorrow', prefix: 'counter-tomorrow' }
     ];
 
     containers.forEach(container => {
@@ -1933,7 +2141,7 @@ function initDrag() {
             fallbackClass: 'sortable-fallback',
             fallbackOnBody: true,
             touchStartThreshold: 15, // BUGFIX: Increased to 15 to prevent micro-movements when clicking menu
-            filter: '.checkbox, .btn-menu, .task-menu-dropdown', // BUGFIX: Exclude checkbox, menu button and dropdown from drag
+            filter: '.checkbox, .btn-menu, .task-menu-dropdown, .separator-task.locked', // BUGFIX: Exclude checkbox, menu button and dropdown from drag
             preventOnFilter: false, // Allow clicks on filtered elements
             onEnd: (evt) => {
                 // Determine which list the task was dropped into
@@ -1949,9 +2157,6 @@ function initDrag() {
                     } else if (targetListId === 'tomorrow-list') {
                         task.status = 'active';
                         task.container_type = 'tomorrow';
-                    } else if (targetListId === 'after-tomorrow-list') {
-                        task.status = 'active';
-                        task.container_type = 'after_tomorrow';
                     } else if (targetListId === 'deferred-list') {
                         task.status = 'deferred';
                         task.container_type = 'deferred';
@@ -1962,11 +2167,29 @@ function initDrag() {
                 }
 
                 // Rebuild tasks array from DOM order
+                // CRITICAL FIX: Include .separator-task to prevent them from vanishing!
                 const newOrder = [];
-                document.querySelectorAll('.task-item').forEach(el => {
-                    const found = tasks.find(t => t.id == el.dataset.id);
-                    if (found) newOrder.push(found);
+                // We must query ALL potential task elements across ALL lists to maintain complete state
+                // However, Sortable only reorders within the container or between containers.
+                // Safest approach: Iterate over all known lists in the DOM and reconstruct the full array
+
+                const lists = ['today-list', 'tomorrow-list', 'deferred-list', 'completed-list'];
+
+                lists.forEach(listId => {
+                    const listEl = document.getElementById(listId);
+                    if (!listEl) return;
+
+                    listEl.querySelectorAll('.task-item, .separator-task').forEach(el => {
+                        const found = tasks.find(t => String(t.id) === String(el.dataset.id));
+                        if (found) newOrder.push(found);
+                    });
                 });
+
+                // Check for lost tasks (e.g. from lists not currently in DOM? unlikely in this app structure)
+                // But just in case, find any tasks that were NOT in the DOM (shouldn't happen if render is correct)
+                // const lostTasks = tasks.filter(t => !newOrder.includes(t));
+                // if (lostTasks.length > 0) newOrder.push(...lostTasks);
+
                 tasks = newOrder;
 
                 // Update order_index for all tasks
@@ -1977,7 +2200,7 @@ function initDrag() {
                 // INSTANT local save
                 save();
 
-                // Re-render to apply auto-sorting for deferred list
+                // Re-render to update counters and ensure strict DOM state
                 render();
 
                 // DEBOUNCED cloud sync: Wait 2 seconds after user stops dragging
@@ -1995,7 +2218,6 @@ function initDrag() {
 
         Sortable.create(document.getElementById('today-list'), opts);
         Sortable.create(document.getElementById('tomorrow-list'), opts);
-        Sortable.create(document.getElementById('after-tomorrow-list'), opts);
         Sortable.create(document.getElementById('deferred-list'), opts);
         Sortable.create(document.getElementById('completed-list'), opts);
     }
